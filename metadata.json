@@ -1,0 +1,5 @@
+{
+  "name": "AI 漫画生成器",
+  "description": "一个使用 AI 创建漫画的应用。用户可以定义角色和素材，编写故事，并生成风格和角色一致的漫画面板。",
+  "requestFramePermissions": []
+}
