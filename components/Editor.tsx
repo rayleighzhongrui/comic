@@ -1,7 +1,7 @@
 
 
 import React, { useState } from 'react';
-import type { Project, Character, Asset, Page } from '../types';
+import type { Project, Character, Asset, Page, Relationship } from '../types';
 import AssetManager from './AssetManager';
 import PageDisplay from './PageDisplay';
 import PageCreator from './PageCreator';
@@ -11,6 +11,7 @@ interface EditorProps {
   characters: Character[];
   assets: Asset[];
   pages: Page[];
+  relationships: Relationship[];
   onAddCharacter: (character: Character) => void;
   onAddAsset: (asset: Asset) => void;
   onAddPage: (page: Page) => void;
@@ -20,6 +21,9 @@ interface EditorProps {
   onDeleteCharacter: (characterId: string) => void;
   onUpdateAsset: (asset: Asset) => void;
   onDeleteAsset: (assetId: string) => void;
+  onAddRelationship: (relationship: Relationship) => void;
+  onUpdateRelationship: (relationship: Relationship) => void;
+  onDeleteRelationship: (relationshipId: string) => void;
 }
 
 const Editor: React.FC<EditorProps> = (props) => {
@@ -27,7 +31,8 @@ const Editor: React.FC<EditorProps> = (props) => {
     project, 
     characters, 
     assets, 
-    pages, 
+    pages,
+    relationships,
     onAddCharacter, 
     onAddAsset, 
     onAddPage,
@@ -37,6 +42,9 @@ const Editor: React.FC<EditorProps> = (props) => {
     onDeleteCharacter,
     onUpdateAsset,
     onDeleteAsset,
+    onAddRelationship,
+    onUpdateRelationship,
+    onDeleteRelationship,
   } = props;
 
   const [continuationContext, setContinuationContext] = useState<Page | null>(null);
@@ -65,12 +73,16 @@ const Editor: React.FC<EditorProps> = (props) => {
             project={project}
             characters={characters}
             assets={assets}
+            relationships={relationships}
             onAddCharacter={onAddCharacter}
             onAddAsset={onAddAsset}
             onUpdateCharacter={onUpdateCharacter}
             onDeleteCharacter={onDeleteCharacter}
             onUpdateAsset={onUpdateAsset}
             onDeleteAsset={onDeleteAsset}
+            onAddRelationship={onAddRelationship}
+            onUpdateRelationship={onUpdateRelationship}
+            onDeleteRelationship={onDeleteRelationship}
           />
         </div>
         
@@ -92,6 +104,7 @@ const Editor: React.FC<EditorProps> = (props) => {
             characters={characters}
             assets={assets}
             pages={pages}
+            relationships={relationships}
             onAddPage={onAddPage}
             continuationContext={continuationContext}
             onClearContinuationContext={handleClearContinuationContext}

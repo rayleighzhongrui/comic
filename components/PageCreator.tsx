@@ -1,10 +1,7 @@
 
 
-
-
-
 import React, { useState, useEffect } from 'react';
-import type { Page, Character, Asset, Project, Scene, LayoutTemplate } from '../types';
+import type { Page, Character, Asset, Project, Scene, LayoutTemplate, Relationship } from '../types';
 import { CAMERA_SHOTS, LAYOUT_TEMPLATES } from '../constants';
 import { geminiService } from '../services/geminiService';
 import Modal from './Modal';
@@ -13,7 +10,7 @@ import { ComicFormat, PageMode } from '../types';
 import { toBase64FromUrl } from '../utils';
 
 
-const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, pages, onAddPage, continuationContext, onClearContinuationContext }) => {
+const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, pages, relationships, onAddPage, continuationContext, onClearContinuationContext }) => {
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [selectedLayout, setSelectedLayout] = useState<LayoutTemplate>(LAYOUT_TEMPLATES[0]);
   const [pageMode, setPageMode] = useState<PageMode>(PageMode.SINGLE);
@@ -160,9 +157,18 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         const selectedChars = characters.filter(c => selectedCharIds.includes(c.characterId));
         const selectedAssets = assets.filter(a => selectedAssetIds.includes(a.assetId));
         const allSelectedItems = [...selectedChars, ...selectedAssets];
+        const allItemsMap = new Map([...characters, ...assets].map(item => [('characterId' in item) ? item.characterId : item.assetId, item]));
+
         const selectedItemsPrompt = allSelectedItems.length > 0
-            ? `本页的主要角色/道具是：${allSelectedItems.map(item => item.name).join('，')}。请确保续写的故事围绕他们展开。`
+            ? `本页的主要角色/道具是：${allSelectedItems.map(item => `“${item.name}” (核心设定: ${item.corePrompt})`).join('；')}。请确保续写的故事围绕他们展开，并严格遵守他们的核心设定。`
             : '';
+
+        const allSelectedIds = new Set([...selectedCharIds, ...selectedAssetIds]);
+        const relevantRelationships = relationships.filter(r => allSelectedIds.has(r.entity1Id) && allSelectedIds.has(r.entity2Id));
+        const relationshipsPrompt = relevantRelationships.length > 0
+            ? `已知的重要关系：${relevantRelationships.map(r => `“${allItemsMap.get(r.entity1Id)?.name}” ${r.description} “${allItemsMap.get(r.entity2Id)?.name}”`).join('；')}。请在故事中体现这些关系。`
+            : '';
+
 
         if (continuationContext) {
           const contextImagePart = await toBase64FromUrl(continuationContext.imageUrl, targetAspectRatio);
@@ -172,6 +178,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             layoutDescription,
             CAMERA_SHOTS,
             selectedItemsPrompt,
+            relationshipsPrompt,
             contextImagePart
           );
           onClearContinuationContext();
@@ -182,7 +189,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             panelCount, 
             layoutDescription,
             CAMERA_SHOTS,
-            selectedItemsPrompt
+            selectedItemsPrompt,
+            relationshipsPrompt
           );
         }
         
@@ -418,6 +426,7 @@ interface PageCreatorProps {
   characters: Character[];
   assets: Asset[];
   pages: Page[];
+  relationships: Relationship[];
   onAddPage: (page: Page) => void;
   continuationContext: Page | null;
   onClearContinuationContext: () => void;

@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import type { Project, Character, Asset, Page } from './types';
+import type { Project, Character, Asset, Page, Relationship } from './types';
 import ProjectCreation from './components/ProjectCreation';
 import Editor from './components/Editor';
 
@@ -9,6 +9,7 @@ const App: React.FC = () => {
   const [characters, setCharacters] = useState<Character[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [pages, setPages] = useState<Page[]>([]);
+  const [relationships, setRelationships] = useState<Relationship[]>([]);
 
   const handleCreateProject = useCallback((newProject: Project) => {
     setProject(newProject);
@@ -16,6 +17,7 @@ const App: React.FC = () => {
     setCharacters([]);
     setAssets([]);
     setPages([]);
+    setRelationships([]);
   }, []);
 
   const handleAddCharacter = useCallback((character: Character) => {
@@ -24,6 +26,10 @@ const App: React.FC = () => {
 
   const handleAddAsset = useCallback((asset: Asset) => {
     setAssets(prev => [...prev, asset]);
+  }, []);
+
+  const handleAddRelationship = useCallback((relationship: Relationship) => {
+    setRelationships(prev => [...prev, relationship]);
   }, []);
   
   const handleAddPage = useCallback((page: Page) => {
@@ -47,6 +53,8 @@ const App: React.FC = () => {
 
   const handleDeleteCharacter = useCallback((characterId: string) => {
     setCharacters(prev => prev.filter(c => c.characterId !== characterId));
+    // Also remove any relationships involving this character
+    setRelationships(prev => prev.filter(r => r.entity1Id !== characterId && r.entity2Id !== characterId));
   }, []);
 
   const handleUpdateAsset = useCallback((updatedAsset: Asset) => {
@@ -55,6 +63,16 @@ const App: React.FC = () => {
 
   const handleDeleteAsset = useCallback((assetId: string) => {
     setAssets(prev => prev.filter(a => a.assetId !== assetId));
+    // Also remove any relationships involving this asset
+    setRelationships(prev => prev.filter(r => r.entity1Id !== assetId && r.entity2Id !== assetId));
+  }, []);
+
+  const handleUpdateRelationship = useCallback((updatedRelationship: Relationship) => {
+    setRelationships(prev => prev.map(r => r.id === updatedRelationship.id ? updatedRelationship : r));
+  }, []);
+
+  const handleDeleteRelationship = useCallback((relationshipId: string) => {
+    setRelationships(prev => prev.filter(r => r.id !== relationshipId));
   }, []);
 
 
@@ -68,6 +86,7 @@ const App: React.FC = () => {
       characters={characters}
       assets={assets}
       pages={pages}
+      relationships={relationships}
       onAddCharacter={handleAddCharacter}
       onAddAsset={handleAddAsset}
       onAddPage={handleAddPage}
@@ -77,6 +96,9 @@ const App: React.FC = () => {
       onDeleteCharacter={handleDeleteCharacter}
       onUpdateAsset={handleUpdateAsset}
       onDeleteAsset={handleDeleteAsset}
+      onAddRelationship={handleAddRelationship}
+      onUpdateRelationship={handleUpdateRelationship}
+      onDeleteRelationship={handleDeleteRelationship}
     />
   );
 };

@@ -212,6 +212,7 @@ export const geminiService = {
     layoutDescription: string,
     availableCameraShots: string[],
     selectedItemsPrompt: string,
+    relationshipsPrompt: string,
     contextImage?: { mimeType: string; data: string }
   ): Promise<Array<{ description: string; cameraShot: string }>> => {
     
@@ -221,6 +222,10 @@ export const geminiService = {
     
     if (selectedItemsPrompt) {
         prompt += `${selectedItemsPrompt}\n`;
+    }
+
+    if (relationshipsPrompt) {
+      prompt += `${relationshipsPrompt}\n`;
     }
 
     if (contextImage) {

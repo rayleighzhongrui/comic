@@ -39,6 +39,13 @@ export interface Asset {
   corePrompt: string;
 }
 
+export interface Relationship {
+  id: string;
+  entity1Id: string; // Can be a Character or Asset ID
+  entity2Id: string; // Can be a Character or Asset ID
+  description: string; // e.g., "is the father of", "is the rival of"
+}
+
 export interface Page {
   pageId: string;
   pageNumber: number;

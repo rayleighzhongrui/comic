@@ -1,80 +1,13 @@
 
+
 import React, { useState } from 'react';
-import type { Character, Asset, Project } from '../types';
+import type { Character, Asset, Project, Relationship } from '../types';
 import { geminiService } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import AssetEditModal from './AssetEditModal';
+import RelationshipEditor from './RelationshipEditor';
 
-interface AssetManagerProps {
-  project: Project;
-  characters: Character[];
-  assets: Asset[];
-  onAddCharacter: (character: Character) => void;
-  onAddAsset: (asset: Asset) => void;
-  onUpdateCharacter: (character: Character) => void;
-  onDeleteCharacter: (characterId: string) => void;
-  onUpdateAsset: (asset: Asset) => void;
-  onDeleteAsset: (assetId: string) => void;
-}
-
-const AssetManager: React.FC<AssetManagerProps> = ({ 
-  project, 
-  characters, 
-  assets, 
-  onAddCharacter, 
-  onAddAsset,
-  onUpdateCharacter,
-  onDeleteCharacter,
-  onUpdateAsset,
-  onDeleteAsset
-}) => {
-  const [editingItem, setEditingItem] = useState<Character | Asset | null>(null);
-
-  const handleSaveItem = (item: Character | Asset) => {
-    if ('characterId' in item) {
-        onUpdateCharacter(item as Character);
-    } else {
-        onUpdateAsset(item as Asset);
-    }
-    setEditingItem(null);
-  };
-
-  return (
-    <>
-      <div className="bg-gray-800 rounded-lg p-4 space-y-6">
-        <AssetSection<Character>
-          title="角色"
-          items={characters}
-          onAddItem={onAddCharacter}
-          onEditItem={setEditingItem}
-          onDeleteItem={onDeleteCharacter}
-          placeholder="例如, '勇敢的骑士，银色头发，左眼有一道疤痕'"
-          project={project}
-          type="character"
-        />
-        <AssetSection<Asset>
-          title="特征 & 道具"
-          items={assets}
-          onAddItem={onAddAsset}
-          onEditItem={setEditingItem}
-          onDeleteItem={onDeleteAsset}
-          placeholder="例如, '闪耀着蓝色能量的传奇之剑'"
-          project={project}
-          type="asset"
-        />
-      </div>
-      {editingItem && (
-          <AssetEditModal
-              project={project}
-              item={editingItem}
-              onClose={() => setEditingItem(null)}
-              onSave={handleSaveItem}
-          />
-      )}
-    </>
-  );
-};
-
+// 1. AssetSectionProps interface moved outside of AssetManager
 interface AssetSectionProps<T extends Character | Asset> {
   title: string;
   items: T[];
@@ -86,6 +19,7 @@ interface AssetSectionProps<T extends Character | Asset> {
   type: 'character' | 'asset';
 }
 
+// 2. AssetSection component moved outside of AssetManager
 const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, onEditItem, onDeleteItem, placeholder, project, type }: AssetSectionProps<T>) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -122,14 +56,27 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
         throw new Error("无法创建或上传图片。");
       }
 
-      // Fix: Cast to unknown first to satisfy TypeScript when creating an object with a dynamic key.
-      const newItem = {
-        [`${type}Id`]: `${type}-${Date.now()}`,
-        name,
-        referenceImageUrl: imageUrl,
-        corePrompt: description,
-      } as unknown as T;
-      onAddItem(newItem);
+      // --- Start of fix ---
+      // Use a more explicit way to create the new item to ensure the ID is set correctly.
+      let newItem;
+      if (type === 'character') {
+          newItem = {
+              characterId: `character-${Date.now()}`,
+              name,
+              referenceImageUrl: imageUrl,
+              corePrompt: description,
+          };
+      } else {
+          newItem = {
+              assetId: `asset-${Date.now()}`,
+              name,
+              referenceImageUrl: imageUrl,
+              corePrompt: description,
+          };
+      }
+      onAddItem(newItem as T);
+      // --- End of fix ---
+      
       setName('');
       setDescription('');
       setUploadedImage(null);
@@ -234,6 +181,93 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
         </button>
       </form>
     </div>
+  );
+};
+
+
+interface AssetManagerProps {
+  project: Project;
+  characters: Character[];
+  assets: Asset[];
+  relationships: Relationship[];
+  onAddCharacter: (character: Character) => void;
+  onAddAsset: (asset: Asset) => void;
+  onUpdateCharacter: (character: Character) => void;
+  onDeleteCharacter: (characterId: string) => void;
+  onUpdateAsset: (asset: Asset) => void;
+  onDeleteAsset: (assetId: string) => void;
+  onAddRelationship: (relationship: Relationship) => void;
+  onUpdateRelationship: (relationship: Relationship) => void;
+  onDeleteRelationship: (relationshipId: string) => void;
+}
+
+const AssetManager: React.FC<AssetManagerProps> = ({ 
+  project, 
+  characters, 
+  assets,
+  relationships,
+  onAddCharacter, 
+  onAddAsset,
+  onUpdateCharacter,
+  onDeleteCharacter,
+  onUpdateAsset,
+  onDeleteAsset,
+  onAddRelationship,
+  onUpdateRelationship,
+  onDeleteRelationship,
+}) => {
+  const [editingItem, setEditingItem] = useState<Character | Asset | null>(null);
+
+  const handleSaveItem = (item: Character | Asset) => {
+    if ('characterId' in item) {
+        onUpdateCharacter(item as Character);
+    } else {
+        onUpdateAsset(item as Asset);
+    }
+    setEditingItem(null);
+  };
+
+  return (
+    <>
+      <div className="bg-gray-800 rounded-lg p-4 space-y-6">
+        <AssetSection<Character>
+          title="角色"
+          items={characters}
+          onAddItem={onAddCharacter}
+          onEditItem={setEditingItem}
+          onDeleteItem={onDeleteCharacter}
+          placeholder="例如, '勇敢的骑士，银色头发，左眼有一道疤痕'"
+          project={project}
+          type="character"
+        />
+        <AssetSection<Asset>
+          title="特征 & 道具"
+          items={assets}
+          onAddItem={onAddAsset}
+          onEditItem={setEditingItem}
+          onDeleteItem={onDeleteAsset}
+          placeholder="例如, '闪耀着蓝色能量的传奇之剑'"
+          project={project}
+          type="asset"
+        />
+        <RelationshipEditor
+          characters={characters}
+          assets={assets}
+          relationships={relationships}
+          onAddRelationship={onAddRelationship}
+          onUpdateRelationship={onUpdateRelationship}
+          onDeleteRelationship={onDeleteRelationship}
+        />
+      </div>
+      {editingItem && (
+          <AssetEditModal
+              project={project}
+              item={editingItem}
+              onClose={() => setEditingItem(null)}
+              onSave={handleSaveItem}
+          />
+      )}
+    </>
   );
 };
 
