@@ -202,6 +202,59 @@ export const geminiService = {
     }
   },
 
+  extendComicPanel: async (
+    storyText: string,
+    imageOnCanvas: { mimeType: string; data: string },
+    maskImage: { mimeType: string; data: string }
+  ): Promise<string> => {
+    console.log("Extending comic panel with story context:", storyText);
+
+    const prompt = `
+      **Primary Goal: Image Outpainting.**
+      You are an expert AI image editor. Your task is to seamlessly extend an existing comic panel image to fill a larger canvas. This is an outpainting task.
+
+      **Inputs:**
+      1.  **Image on Canvas:** An image placed in the center of a larger, blank canvas.
+      2.  **Mask:** A black and white image. You MUST ONLY generate new content in the WHITE areas. The BLACK area contains the original image and must be preserved and seamlessly connected to your new content.
+
+      **Instructions:**
+      - **Visually Continue the Scene:** Your most important job is to intelligently continue the existing artwork from the black area into the white area. Analyze the lighting, colors, textures, characters, and background elements at the edges of the original image and extend them outwards naturally.
+      - **Maintain Style:** The new content must perfectly match the art style of the original image.
+      - **Contextual Awareness:** The original story content for this image was: "${storyText}". Use this as a high-level guide for what the extended scene might contain, but your primary focus is on a believable visual continuation, not a literal interpretation of the text.
+      - **Seamless Integration:** The transition between the original image and the newly generated areas must be invisible.
+
+      **Final Output:** A single, high-quality, larger image with the empty space filled in.
+    `.trim().replace(/\s+/g, ' ');
+
+    const contentRequest = {
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          { text: prompt },
+          { inlineData: imageOnCanvas },
+          { inlineData: maskImage }
+        ]
+      },
+      config: {
+        responseModalities: [Modality.IMAGE, Modality.TEXT],
+      },
+    };
+
+    try {
+      const response = await ai.models.generateContent(contentRequest);
+      const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+      if (imagePart?.inlineData) {
+        const { mimeType, data } = imagePart.inlineData;
+        return `data:${mimeType};base64,${data}`;
+      }
+      throw new Error("No image was returned from the extend operation.");
+    } catch (error) {
+      console.error("Error extending comic panel:", error);
+      // Re-throw the error to be handled by the calling component.
+      throw error;
+    }
+  },
+
   /**
    * Continues the story for multiple panels based on a layout, using gemini-2.5-flash.
    * Returns an array of objects, each containing a description and a suggested camera shot.
@@ -222,15 +275,15 @@ export const geminiService = {
     prompt += `现在，请为下一页续写故事。这一页有一个特殊的布局：“${layoutDescription}”，它包含 ${panelCount} 个分镜。\n`;
     
     if (pageOutline) {
-      prompt += `【本页故事大纲】：“${pageOutline}”。请严格围绕这个大纲来创作接下来 ${panelCount} 个分镜的具体内容。这是最重要的创作指令。\n`;
+      prompt += `你的核心任务是创作接下来 ${panelCount} 个分镜的具体内容，并且必须严格围绕【本页故事大纲】：“${pageOutline}”来展开。\n`;
     }
 
     if (selectedItemsPrompt) {
-        prompt += `${selectedItemsPrompt}\n`;
+        prompt += `在创作时，请确保故事围绕这些【主要角色/道具】展开：${selectedItemsPrompt}\n`;
     }
 
     if (relationshipsPrompt) {
-      prompt += `${relationshipsPrompt}\n`;
+      prompt += `请在故事中体现这些【重要关系】：${relationshipsPrompt}\n`;
     }
 
     if (contextImage) {

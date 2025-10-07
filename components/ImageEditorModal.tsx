@@ -6,7 +6,7 @@ import { toBase64FromUrl } from '../utils';
 
 interface ImageEditorModalProps {
   imageUrl: string;
-  aspectRatio: '16:9' | '9:16' | '1:1';
+  aspectRatio: '16:9' | '9:16' | '1:1' | '2:3' | '4:3';
   onClose: () => void;
   onSave: (newImageUrl: string) => void;
 }

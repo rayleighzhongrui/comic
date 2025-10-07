@@ -16,8 +16,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   const [pageMode, setPageMode] = useState<PageMode>(PageMode.SINGLE);
   const [colorMode, setColorMode] = useState<'color' | 'bw'>('color');
 
-  const [selectedCharIds, setSelectedCharIds] = useState<string[]>([]);
-  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [selectedCharIdsForContinuation, setSelectedCharIdsForContinuation] = useState<string[]>([]);
+  const [selectedAssetIdsForContinuation, setSelectedAssetIdsForContinuation] = useState<string[]>([]);
   
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
@@ -49,7 +49,13 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   useEffect(() => {
     setScenes(currentScenes => {
       const newScenes = Array.from({ length: finalSelectedLayout.panelCount }, (_, i) => {
-        return currentScenes[i] || { sceneId: `scene-${Date.now()}-${i}`, description: '', cameraShot: CAMERA_SHOTS[0] };
+        return currentScenes[i] || { 
+          sceneId: `scene-${Date.now()}-${i}`, 
+          description: '', 
+          cameraShot: CAMERA_SHOTS[0],
+          characterIds: [],
+          assetIds: [],
+        };
       });
       return newScenes;
     });
@@ -70,18 +76,23 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   }, [continuationContext]);
   
   useEffect(() => {
-    // When the list of available characters/assets changes, remove any selected IDs
-    // that no longer correspond to an existing item. This prevents stale state
-    // after an item is deleted.
     const availableCharIds = new Set(characters.map(c => c.characterId));
-    setSelectedCharIds(prev => prev.filter(id => availableCharIds.has(id)));
+    setSelectedCharIdsForContinuation(prev => prev.filter(id => availableCharIds.has(id)));
+    setScenes(prevScenes => prevScenes.map(scene => ({
+        ...scene,
+        characterIds: scene.characterIds?.filter(id => availableCharIds.has(id))
+    })));
 
     const availableAssetIds = new Set(assets.map(a => a.assetId));
-    setSelectedAssetIds(prev => prev.filter(id => availableAssetIds.has(id)));
+    setSelectedAssetIdsForContinuation(prev => prev.filter(id => availableAssetIds.has(id)));
+    setScenes(prevScenes => prevScenes.map(scene => ({
+        ...scene,
+        assetIds: scene.assetIds?.filter(id => availableAssetIds.has(id))
+    })));
   }, [characters, assets]);
 
 
-  const toggleSelection = (id: string, list: string[], setList: React.Dispatch<React.SetStateAction<string[]>>) => {
+  const toggleContinuationSelection = (id: string, list: string[], setList: React.Dispatch<React.SetStateAction<string[]>>) => {
     setList(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
 
@@ -92,6 +103,22 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         )
     );
   };
+
+  const handleSceneItemToggle = (sceneId: string, itemId: string, type: 'character' | 'asset') => {
+      setScenes(currentScenes =>
+          currentScenes.map(scene => {
+              if (scene.sceneId === sceneId) {
+                  const key = type === 'character' ? 'characterIds' : 'assetIds';
+                  const currentIds = scene[key] || [];
+                  const newIds = currentIds.includes(itemId)
+                      ? currentIds.filter(id => id !== itemId)
+                      : [...currentIds, itemId];
+                  return { ...scene, [key]: newIds };
+              }
+              return scene;
+          })
+      );
+  };
   
     const handleAddRow = () => setCustomLayoutConfig(prev => [...prev, 1]);
     const handleRemoveRow = () => setCustomLayoutConfig(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
@@ -101,30 +128,40 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
 
   const buildPrompt = (
     currentLayout: LayoutTemplate, 
-    currentScenes: Scene[], 
-    selectedChars: Character[], 
-    selectedAssets: Asset[], 
+    currentScenes: Scene[],
+    allAvailableCharacters: Character[],
+    allAvailableAssets: Asset[],
     currentProject: Project, 
     currentPageMode: PageMode,
     currentColorMode: 'color' | 'bw'
   ) => {
-      const allItems = [...selectedChars, ...selectedAssets];
+      // 1. Collect all unique items that appear in ANY scene.
+      const appearingCharIds = new Set(currentScenes.flatMap(s => s.characterIds || []));
+      const appearingAssetIds = new Set(currentScenes.flatMap(s => s.assetIds || []));
+
+      const appearingCharacters = allAvailableCharacters.filter(c => appearingCharIds.has(c.characterId));
+      const appearingAssets = allAvailableAssets.filter(a => appearingAssetIds.has(a.assetId));
+
+      const allAppearingItems = [...appearingCharacters, ...appearingAssets];
+      const itemToRefNumMap = new Map(allAppearingItems.map((item, index) => [('characterId' in item) ? item.characterId : item.assetId, index + 1]));
+
+      // 2. Build the Character Sheet based on appearing items.
       let characterSheet = '**角色与参考图对应表 (Character Sheet):**\n你必须严格遵守此对应关系。参考图按此列表顺序提供。\n\n';
       
-      if (allItems.length > 0) {
-          allItems.forEach((item, index) => {
+      if (allAppearingItems.length > 0) {
+          allAppearingItems.forEach((item, index) => {
               const type = 'characterId' in item ? '角色' : '物品';
               characterSheet += `参考图 ${index + 1}: [${type}] "${item.name}"\n- 核心描述: ${item.corePrompt}\n\n`;
           });
-          characterSheet += "在下面的分镜内容描述中，如果提到了某个角色的名字，你【必须】使用上面表格中对应的参考图来绘制该角色。这是最重要的规则。";
+          characterSheet += "在下面的分镜内容描述中，如果提到了某个角色的名字或指定了参考图，你【必须】使用上面表格中对应的参考图来绘制该角色。这是最重要的规则。";
       } else {
           characterSheet = '**参考资料:** 未提供特定角色参考。';
       }
       
       const isSpread = currentProject.format === ComicFormat.PAGE && currentPageMode === PageMode.SPREAD;
       const aspectRatioInstruction = isSpread
-        ? 'ABSOLUTE REQUIREMENT: The output image MUST BE LANDSCAPE with a strict 16:9 aspect ratio, representing a two-page spread. DO NOT generate a portrait (9:16) image. This is the most important instruction.'
-        : 'ABSOLUTE REQUIREMENT: The output image MUST BE PORTRAIT with a strict 9:16 aspect ratio. DO NOT generate a landscape (16:9) image. This is the most important instruction.';
+        ? 'ABSOLUTE REQUIREMENT: The output image MUST BE LANDSCAPE with a strict 4:3 aspect ratio, representing a two-page spread. DO NOT generate a portrait image. This is the most important instruction.'
+        : 'ABSOLUTE REQUIREMENT: The output image MUST BE PORTRAIT with a strict 2:3 aspect ratio. DO NOT generate a landscape image. This is the most important instruction.';
 
       let mainInstruction = '';
       if (currentProject.format === ComicFormat.PAGE) {
@@ -139,9 +176,25 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
           ? 'ABSOLUTE REQUIREMENT: The image MUST be in black and white (monochrome), using manga screen tones for shading. DO NOT use any color.'
           : 'The image should be in full, vibrant color.';
 
-      const panelContentDescriptions = currentScenes.map((scene, index) => 
-        `- 分镜 ${index + 1} 内容: [镜头: ${scene.cameraShot}] ${scene.description}`
-      ).join('\n');
+      // 3. Build panel descriptions with explicit character appearances.
+      const panelContentDescriptions = currentScenes.map((scene, index) => {
+          const sceneChars = (scene.characterIds || []).map(id => allAvailableCharacters.find(c => c.characterId === id)).filter(Boolean);
+          const sceneAssets = (scene.assetIds || []).map(id => allAvailableAssets.find(a => a.assetId === id)).filter(Boolean);
+          const sceneItems = [...sceneChars, ...sceneAssets];
+
+          let appearanceInstruction = '';
+          if (sceneItems.length > 0) {
+              const itemsList = sceneItems.map(item => {
+                  const id = 'characterId' in item ? item.characterId : item.assetId;
+                  return `"${item.name}" (参考图 ${itemToRefNumMap.get(id)})`;
+              }).join(', ');
+              const typeLabel = sceneChars.length > 0 && sceneAssets.length > 0 ? '角色/道具' : sceneChars.length > 0 ? '角色' : '道具';
+              appearanceInstruction = ` [出场${typeLabel}: ${itemsList}]`;
+          }
+          
+          return `- 分镜 ${index + 1} 内容: [镜头: ${scene.cameraShot}] ${scene.description}${appearanceInstruction}`;
+      }).join('\n');
+
 
       const finalPrompt = `
         ${aspectRatioInstruction}
@@ -178,19 +231,19 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         const panelCount = finalSelectedLayout.panelCount;
         const layoutDescription = finalSelectedLayout.description;
 
-        const selectedChars = characters.filter(c => selectedCharIds.includes(c.characterId));
-        const selectedAssets = assets.filter(a => selectedAssetIds.includes(a.assetId));
+        const selectedChars = characters.filter(c => selectedCharIdsForContinuation.includes(c.characterId));
+        const selectedAssets = assets.filter(a => selectedAssetIdsForContinuation.includes(a.assetId));
         const allSelectedItems = [...selectedChars, ...selectedAssets];
         const allItemsMap = new Map([...characters, ...assets].map(item => [('characterId' in item) ? item.characterId : item.assetId, item]));
 
         const selectedItemsPrompt = allSelectedItems.length > 0
-            ? `本页的主要角色/道具是：${allSelectedItems.map(item => `“${item.name}” (核心设定: ${item.corePrompt})`).join('；')}。请确保续写的故事围绕他们展开，并严格遵守他们的核心设定。`
+            ? `${allSelectedItems.map(item => `“${item.name}” (核心设定: ${item.corePrompt})`).join('；')}。`
             : '';
 
-        const allSelectedIds = new Set([...selectedCharIds, ...selectedAssetIds]);
+        const allSelectedIds = new Set([...selectedCharIdsForContinuation, ...selectedAssetIdsForContinuation]);
         const relevantRelationships = relationships.filter(r => allSelectedIds.has(r.entity1Id) && allSelectedIds.has(r.entity2Id));
         const relationshipsPrompt = relevantRelationships.length > 0
-            ? `已知的重要关系：${relevantRelationships.map(r => `“${allItemsMap.get(r.entity1Id)?.name}” ${r.description} “${allItemsMap.get(r.entity2Id)?.name}”`).join('；')}。请在故事中体现这些关系。`
+            ? `${relevantRelationships.map(r => `“${allItemsMap.get(r.entity1Id)?.name}” ${r.description} “${allItemsMap.get(r.entity2Id)?.name}”`).join('；')}。`
             : '';
 
 
@@ -225,7 +278,6 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             const detail = continuationDetails[index];
             if (!detail) return scene;
 
-            // Ensure the AI returned a valid camera shot, otherwise keep the current one.
             const validCameraShot = CAMERA_SHOTS.includes(detail.cameraShot) 
               ? detail.cameraShot 
               : scene.cameraShot;
@@ -240,7 +292,6 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
           scenesForGeneration = newScenes;
         } else {
           console.warn('AI返回的分镜描述数量与请求不符。');
-          // Fallback: put everything in the first panel
           const newScenes = [...scenes];
           const combinedDescription = continuationDetails.map(d => d.description).join(' ');
           newScenes[0] = { ...newScenes[0], description: combinedDescription };
@@ -260,16 +311,18 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       }
       
       setLoadingText('准备参考图中...');
-      const selectedChars = characters.filter(c => selectedCharIds.includes(c.characterId));
-      const selectedAssets = assets.filter(a => selectedAssetIds.includes(a.assetId));
-      const allSelectedItems = [...selectedChars, ...selectedAssets];
+      const appearingCharIds = new Set(scenesForGeneration.flatMap(s => s.characterIds || []));
+      const appearingAssetIds = new Set(scenesForGeneration.flatMap(s => s.assetIds || []));
+      const appearingCharacters = characters.filter(c => appearingCharIds.has(c.characterId));
+      const appearingAssets = assets.filter(a => appearingAssetIds.has(a.assetId));
+      const allAppearingItems = [...appearingCharacters, ...appearingAssets];
 
       const imageParts = await Promise.all(
-        allSelectedItems.map(item => toBase64FromUrl(item.referenceImageUrl))
+        allAppearingItems.map(item => toBase64FromUrl(item.referenceImageUrl))
       );
 
       setLoadingText('AI 正在绘制您的漫画...');
-      const prompt = buildPrompt(finalSelectedLayout, scenesForGeneration, selectedChars, selectedAssets, project, pageMode, colorMode);
+      const prompt = buildPrompt(finalSelectedLayout, scenesForGeneration, characters, assets, project, pageMode, colorMode);
       const fullStoryText = scenesForGeneration.map((s, i) => `分镜 ${i+1}: ${s.description}`).join('\n\n');
       
       setFinalPrompt(prompt);
@@ -279,7 +332,6 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       
       const processedImages = await Promise.all(
         images.map(async (imgUrl) => {
-          // Process the image to ensure it's a valid, consistent format (PNG) without altering dimensions.
           const { mimeType, data } = await toBase64FromUrl(imgUrl);
           return `data:${mimeType};base64,${data}`;
         })
@@ -308,13 +360,15 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
     });
     setIsModalOpen(false);
     setGeneratedImages([]);
-    // Reset scenes and mode
     setScenes(Array.from({ length: finalSelectedLayout.panelCount }, (_, i) => ({
       sceneId: `scene-${Date.now()}-${i}`,
       description: '',
-      cameraShot: CAMERA_SHOTS[0]
+      cameraShot: CAMERA_SHOTS[0],
+      characterIds: [],
+      assetIds: [],
     })));
     setPageMode(PageMode.SINGLE);
+    setPageOutline('');
   };
 
   const isStoryEmpty = scenes.every(s => !s.description.trim());
@@ -323,8 +377,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
     <div className="bg-gray-800 rounded-lg p-4 space-y-4">
       <h3 className="text-lg font-semibold">创建新页面</h3>
 
-      <SelectionGrid title="角色" items={characters} selectedIds={selectedCharIds} onToggle={id => toggleSelection(id, selectedCharIds, setSelectedCharIds)} />
-      <SelectionGrid title="特征 & 道具" items={assets} selectedIds={selectedAssetIds} onToggle={id => toggleSelection(id, selectedAssetIds, setSelectedAssetIds)} />
+      <ContinuationSelectionGrid title="AI续写-主要角色" items={characters} selectedIds={selectedCharIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedCharIdsForContinuation, setSelectedCharIdsForContinuation)} />
+      <ContinuationSelectionGrid title="AI续写-主要特征" items={assets} selectedIds={selectedAssetIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedAssetIdsForContinuation, setSelectedAssetIdsForContinuation)} />
 
        <div>
         <label className="block text-sm font-medium text-gray-300 mb-2">色彩模式</label>
@@ -428,36 +482,57 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       <div>
          <label className="block text-sm font-medium text-gray-300 mb-2">填充分镜内容</label>
          {(() => {
+            const renderSceneInput = (scene: Scene, index: number) => {
+              if (!scene) return null;
+              return (
+                  <div key={scene.sceneId} className="p-3 bg-gray-700 rounded-lg space-y-2">
+                      <label className="block text-xs font-medium text-gray-400">分镜 {index + 1}</label>
+                      <textarea
+                          rows={3}
+                          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          value={scene.description}
+                          onChange={e => handleSceneChange(scene.sceneId, 'description', e.target.value)}
+                          placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
+                      />
+                      <select
+                          value={scene.cameraShot}
+                          onChange={e => handleSceneChange(scene.sceneId, 'cameraShot', e.target.value)}
+                          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                      >
+                          {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
+                      </select>
+                      {characters.length > 0 && (
+                          <div className="pt-2">
+                              <label className="block text-xs font-medium text-gray-400 mb-1">出场角色</label>
+                              <div className="flex flex-wrap gap-2">
+                                  {characters.map(char => (
+                                      <img
+                                          key={char.characterId}
+                                          src={char.referenceImageUrl}
+                                          alt={char.name}
+                                          title={char.name}
+                                          onClick={() => handleSceneItemToggle(scene.sceneId, char.characterId, 'character')}
+                                          className={`w-10 h-10 object-cover rounded-md cursor-pointer border-2 transition-all ${scene.characterIds?.includes(char.characterId) ? 'border-indigo-500' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                                      />
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                  </div>
+              );
+            };
+
             if (selectedLayout.id === 'custom') {
               let sceneIndex = 0;
               return (
                 <div className="w-full flex flex-col gap-2">
                   {customLayoutConfig.map((cols, rowIndex) => (
                     <div key={rowIndex} className="flex gap-2">
-                      {Array.from({ length: cols }).map((_, colIndex) => {
+                      {Array.from({ length: cols }).map(() => {
                         const currentScene = scenes[sceneIndex];
                         const currentIndex = sceneIndex;
                         sceneIndex++;
-                        if (!currentScene) return null;
-                        return (
-                          <div key={currentScene.sceneId} style={{ flex: 1 }} className="p-3 bg-gray-700 rounded-lg space-y-2">
-                            <label className="block text-xs font-medium text-gray-400">分镜 {currentIndex + 1}</label>
-                            <textarea
-                              rows={3}
-                              className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                              value={currentScene.description}
-                              onChange={e => handleSceneChange(currentScene.sceneId, 'description', e.target.value)}
-                              placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
-                            />
-                            <select
-                                value={currentScene.cameraShot}
-                                onChange={e => handleSceneChange(currentScene.sceneId, 'cameraShot', e.target.value)}
-                                className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                              >
-                                {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
-                            </select>
-                          </div>
-                        );
+                        return <div style={{flex: 1}} key={currentScene?.sceneId || currentIndex}>{renderSceneInput(currentScene, currentIndex)}</div>
                       })}
                     </div>
                   ))}
@@ -467,22 +542,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
               return (
                 <div style={finalSelectedLayout.style} className="w-full">
                   {scenes.map((scene, index) => (
-                    <div key={scene.sceneId} style={finalSelectedLayout.panelStyles[index]} className="p-3 bg-gray-700 rounded-lg space-y-2">
-                      <label className="block text-xs font-medium text-gray-400">分镜 {index + 1}</label>
-                      <textarea
-                        rows={3}
-                        className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        value={scene.description}
-                        onChange={e => handleSceneChange(scene.sceneId, 'description', e.target.value)}
-                        placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
-                      />
-                      <select
-                          value={scene.cameraShot}
-                          onChange={e => handleSceneChange(scene.sceneId, 'cameraShot', e.target.value)}
-                          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                        >
-                          {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
-                      </select>
+                    <div key={scene.sceneId} style={finalSelectedLayout.panelStyles[index]}>
+                      {renderSceneInput(scene, index)}
                     </div>
                   ))}
                 </div>
@@ -547,14 +608,14 @@ interface PageCreatorProps {
   onClearContinuationContext: () => void;
 }
 
-interface SelectionGridProps {
+interface ContinuationSelectionGridProps {
   title: string;
   items: (Character | Asset)[];
   selectedIds: string[];
   onToggle: (id: string) => void;
 }
 
-const SelectionGrid: React.FC<SelectionGridProps> = ({ title, items, selectedIds, onToggle }) => {
+const ContinuationSelectionGrid: React.FC<ContinuationSelectionGridProps> = ({ title, items, selectedIds, onToggle }) => {
   if(items.length === 0) return null;
   return (
     <div>
@@ -567,7 +628,7 @@ const SelectionGrid: React.FC<SelectionGridProps> = ({ title, items, selectedIds
             <div
               key={id}
               onClick={() => onToggle(id)}
-              className={`cursor-pointer p-1 rounded-md transition-all ${isSelected ? 'bg-indigo-500' : 'bg-gray-700 hover:bg-gray-600'}`}
+              className={`cursor-pointer p-1 rounded-md transition-all ${isSelected ? 'bg-teal-500' : 'bg-gray-700 hover:bg-gray-600'}`}
             >
               <img src={item.referenceImageUrl} alt={item.name} className="w-12 h-12 object-cover rounded" />
               <p className="text-xs text-center mt-1 truncate w-12 text-white">{item.name}</p>

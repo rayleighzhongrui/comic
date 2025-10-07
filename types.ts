@@ -59,6 +59,8 @@ export interface Scene {
   sceneId: string;
   description: string;
   cameraShot: string;
+  characterIds?: string[];
+  assetIds?: string[];
 }
 
 export interface LayoutTemplate {
