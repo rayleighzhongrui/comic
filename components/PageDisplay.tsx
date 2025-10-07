@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import type { Page, Project } from '../types';
 import { ComicFormat, PageMode } from '../types';
 import jsPDF from 'jspdf';
+import JSZip from 'jszip';
 import LoadingSpinner from './LoadingSpinner';
 import ImageEditorModal from './ImageEditorModal';
 
@@ -15,12 +16,27 @@ interface PageDisplayProps {
 
 const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage, onUpdatePage, onContinueFromPage }) => {
   const endOfPagesRef = useRef<HTMLDivElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [editingPage, setEditingPage] = useState<Page | null>(null);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
     endOfPagesRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [pages]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef]);
+
 
   const triggerDownload = (href: string, filename:string) => {
     const link = document.createElement('a');
@@ -30,15 +46,31 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
     link.click();
     document.body.removeChild(link);
   };
+
+  const getStoryContent = () => {
+    let storyContent = `项目: ${project.projectName}\n\n`;
+    storyContent += "========================================\n\n";
+    pages.forEach(page => {
+        storyContent += `--- 页面 ${page.pageNumber} ---\n`;
+        // Add a newline before each panel for readability
+        const formattedStory = page.userStoryText.replace(/分镜 \d+:/g, '\n$&').trim();
+        storyContent += `${formattedStory}\n\n`;
+        storyContent += "========================================\n\n";
+    });
+    return storyContent;
+  };
   
   const downloadAsWebtoon = async () => {
+    const zip = new JSZip();
+    zip.file("story.txt", getStoryContent());
+
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
     const imagePromises = pages.map(page => new Promise<HTMLImageElement>((resolve, reject) => {
         const img = new Image();
-        img.crossOrigin = 'anonymous'; // Important for fetching from data URLs or other origins
+        img.crossOrigin = 'anonymous';
         img.onload = () => resolve(img);
         img.onerror = reject;
         img.src = page.imageUrl;
@@ -47,19 +79,32 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
     const images = await Promise.all(imagePromises);
     if(images.length === 0) return;
 
-    const totalWidth = images[0].width;
+    const maxWidth = Math.max(...images.map(img => img.width));
     const totalHeight = images.reduce((sum, img) => sum + img.height, 0);
     
-    canvas.width = totalWidth;
+    canvas.width = maxWidth;
     canvas.height = totalHeight;
+
+    // Fill with a white background to handle images of different widths gracefully
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     let currentY = 0;
     images.forEach(img => {
-      ctx.drawImage(img, 0, currentY);
+      const xOffset = (maxWidth - img.width) / 2;
+      ctx.drawImage(img, xOffset, currentY);
       currentY += img.height;
     });
 
-    triggerDownload(canvas.toDataURL('image/png'), `${project.projectName}.png`);
+    const imageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (imageBlob) {
+        zip.file(`${project.projectName}_webtoon.png`, imageBlob);
+    }
+    
+    const content = await zip.generateAsync({ type: 'blob' });
+    const url = URL.createObjectURL(content);
+    triggerDownload(url, `${project.projectName}_webtoon.zip`);
+    URL.revokeObjectURL(url);
   };
   
   const downloadAsPdf = async () => {
@@ -110,15 +155,51 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
         doc.addImage(img, 'PNG', x, y, finalWidth, finalHeight);
     }
     
+    // Append story text if available
+    if (pages.some(p => p.userStoryText?.trim())) {
+      doc.addPage();
+      // Note: Default jsPDF fonts do not support Chinese characters well.
+      // The text may not render correctly without embedding a compatible font.
+      // This implementation proceeds assuming the PDF viewer will handle font substitution.
+      doc.setFont('helvetica', 'normal'); 
+      doc.setFontSize(18);
+      doc.text("故事脚本", pdfPageWidth / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(10);
+      let y = 40;
+      const margin = 20;
+      const maxWidth = pdfPageWidth - margin * 2;
+
+      for (const page of pages) {
+          if (page.userStoryText?.trim()) {
+              const pageHeader = `--- 页面 ${page.pageNumber} ---`;
+              const formattedStory = page.userStoryText.replace(/分镜 \d+:/g, '\n$&').trim();
+              const fullText = `${pageHeader}\n${formattedStory}`;
+              
+              const textLines = doc.splitTextToSize(fullText, maxWidth);
+              const textBlockHeight = textLines.length * 10 + 15; // Approximate height including margin
+
+              if (y + textBlockHeight > pdfPageHeight - margin) {
+                  doc.addPage();
+                  y = margin;
+              }
+
+              doc.text(textLines, margin, y);
+              y += textBlockHeight;
+          }
+      }
+    }
+
     doc.save(`${project.projectName}.pdf`);
   };
 
-  const handleDownload = async () => {
+  const handlePrimaryDownload = async () => {
     if(pages.length === 0) {
       alert("没有可供下载的页面！");
       return;
     }
     setIsDownloading(true);
+    setIsDropdownOpen(false);
     try {
       if(project.format === ComicFormat.WEBTOON) {
         await downloadAsWebtoon();
@@ -133,9 +214,46 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
     }
   };
   
+  const downloadAsZip = async () => {
+    if (pages.length === 0) {
+      alert("没有可供下载的页面！");
+      return;
+    }
+    setIsDownloading(true);
+    setIsDropdownOpen(false);
+    try {
+      const zip = new JSZip();
+      zip.file("story.txt", getStoryContent());
+      
+      const promises = pages.map(async (page, index) => {
+        const response = await fetch(page.imageUrl);
+        const blob = await response.blob();
+        const pageNumber = String(index + 1).padStart(3, '0');
+        zip.file(`${project.projectName}_page_${pageNumber}.png`, blob);
+      });
+
+      await Promise.all(promises);
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(content);
+      triggerDownload(url, `${project.projectName}.zip`);
+      URL.revokeObjectURL(url);
+
+    } catch (error) {
+      console.error("Failed to create and download zip:", error);
+      alert("创建ZIP文件时发生错误。");
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+  
+  const handleDownloadSinglePage = (page: Page) => {
+    const pageNumber = String(page.pageNumber).padStart(3, '0');
+    triggerDownload(page.imageUrl, `${project.projectName}_page_${pageNumber}.png`);
+  };
+
   const containerClasses = project.format === ComicFormat.WEBTOON
     ? "space-y-1"
-    // Fix: Changed grid columns for 'page' format to 1 for better display on most screens.
     : "grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4";
 
   return (
@@ -143,18 +261,43 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
     <div className="bg-gray-800 rounded-lg p-4 flex flex-col h-full">
       <div className="flex justify-between items-center mb-4">
         <h2 className="text-xl font-bold text-center">{project.projectName}</h2>
-        <button 
-          onClick={handleDownload}
-          disabled={isDownloading || pages.length === 0}
-          className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
-        >
-          {isDownloading ? <LoadingSpinner size={20} className="mr-2"/> : (
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+        <div className="relative" ref={dropdownRef}>
+          <button 
+            onClick={() => setIsDropdownOpen(prev => !prev)}
+            disabled={isDownloading || pages.length === 0}
+            className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+          >
+            {isDownloading ? <LoadingSpinner size={20} className="mr-2"/> : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+              </svg>
+            )}
+            下载
+            <svg className={`-mr-1 ml-2 h-5 w-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
+          </button>
+          {isDropdownOpen && (
+            <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-20">
+              <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+                <button
+                  onClick={handlePrimaryDownload}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  role="menuitem"
+                >
+                  {project.format === ComicFormat.WEBTOON ? '下载 Webtoon (ZIP)' : '下载为 PDF'}
+                </button>
+                <button
+                  onClick={downloadAsZip}
+                  className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  role="menuitem"
+                >
+                  下载所有图片 (ZIP)
+                </button>
+              </div>
+            </div>
           )}
-          下载
-        </button>
+        </div>
       </div>
       <div className="flex-grow overflow-y-auto">
         {pages.length === 0 ? (
@@ -170,6 +313,14 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
                   {index + 1}
                 </div>
                  <div className="absolute top-2 right-2 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                        onClick={() => handleDownloadSinglePage(page)}
+                        className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors"
+                        aria-label="下载本页"
+                        title="下载本页"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                    </button>
                     <button
                         onClick={() => onContinueFromPage(page)}
                         className="p-1.5 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"

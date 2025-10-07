@@ -147,9 +147,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
 
       if (isContinuation) {
         setLoadingText('AI 正在撰写下一个场景...');
-        const isSpread = project.format === ComicFormat.PAGE && pageMode === PageMode.SPREAD;
-        const targetAspectRatio = isSpread ? '16:9' : '9:16';
-
+        
         let continuationDetails: Array<{ description: string; cameraShot: string; }> = [];
         const panelCount = selectedLayout.panelCount;
         const layoutDescription = selectedLayout.description;
@@ -171,7 +169,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
 
 
         if (continuationContext) {
-          const contextImagePart = await toBase64FromUrl(continuationContext.imageUrl, targetAspectRatio);
+          const contextImagePart = await toBase64FromUrl(continuationContext.imageUrl);
           continuationDetails = await geminiService.generateStoryContinuation(
             continuationContext.userStoryText, 
             panelCount, 
@@ -237,12 +235,9 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       const selectedChars = characters.filter(c => selectedCharIds.includes(c.characterId));
       const selectedAssets = assets.filter(a => selectedAssetIds.includes(a.assetId));
       const allSelectedItems = [...selectedChars, ...selectedAssets];
-      
-      const isSpread = project.format === ComicFormat.PAGE && pageMode === PageMode.SPREAD;
-      const targetAspectRatio = isSpread ? '16:9' : '9:16';
 
       const imageParts = await Promise.all(
-        allSelectedItems.map(item => toBase64FromUrl(item.referenceImageUrl, '1:1'))
+        allSelectedItems.map(item => toBase64FromUrl(item.referenceImageUrl))
       );
 
       setLoadingText('AI 正在绘制您的漫画...');
@@ -256,8 +251,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       
       const processedImages = await Promise.all(
         images.map(async (imgUrl) => {
-          // Enforce aspect ratio on every generated image to ensure consistency
-          const { mimeType, data } = await toBase64FromUrl(imgUrl, targetAspectRatio);
+          // Process the image to ensure it's a valid, consistent format (PNG) without altering dimensions.
+          const { mimeType, data } = await toBase64FromUrl(imgUrl);
           return `data:${mimeType};base64,${data}`;
         })
       );

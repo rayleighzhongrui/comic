@@ -178,14 +178,13 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, aspectRat
     const maskUrl = maskCanvas.toDataURL('image/png');
 
     try {
-      const targetAspectRatio = aspectRatio;
       const promises: Promise<{ mimeType: string, data: string }>[] = [
-        toBase64FromUrl(imageUrl, targetAspectRatio),
-        toBase64FromUrl(maskUrl, targetAspectRatio)
+        toBase64FromUrl(imageUrl),
+        toBase64FromUrl(maskUrl)
       ];
 
       if (referenceImage) {
-          promises.push(toBase64FromUrl(referenceImage, targetAspectRatio));
+          promises.push(toBase64FromUrl(referenceImage));
       }
 
       const results = await Promise.all(promises);
