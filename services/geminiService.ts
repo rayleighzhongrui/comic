@@ -213,6 +213,7 @@ export const geminiService = {
     availableCameraShots: string[],
     selectedItemsPrompt: string,
     relationshipsPrompt: string,
+    pageOutline: string,
     contextImage?: { mimeType: string; data: string }
   ): Promise<Array<{ description: string; cameraShot: string }>> => {
     
@@ -220,6 +221,10 @@ export const geminiService = {
     let prompt = `你是一位富有创意的漫画导演和编剧。到目前为止的故事是：“${previousStory}”。\n`;
     prompt += `现在，请为下一页续写故事。这一页有一个特殊的布局：“${layoutDescription}”，它包含 ${panelCount} 个分镜。\n`;
     
+    if (pageOutline) {
+      prompt += `【本页故事大纲】：“${pageOutline}”。请严格围绕这个大纲来创作接下来 ${panelCount} 个分镜的具体内容。这是最重要的创作指令。\n`;
+    }
+
     if (selectedItemsPrompt) {
         prompt += `${selectedItemsPrompt}\n`;
     }

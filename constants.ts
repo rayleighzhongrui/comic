@@ -100,6 +100,22 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '8px' },
     panelStyles: [{ gridRow: 'span 2' }, {}, {}],
   },
+    {
+    id: 'hero-bottom',
+    name: '底部主分镜',
+    panelCount: 3,
+    description: '页面布局如下：分镜1和分镜2并排在顶部，各占一半宽度。一个大的、横跨整个页面宽度的分镜3在底部，占据页面下半部分。',
+    style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: '1fr 1fr', gap: '8px' },
+    panelStyles: [{}, {}, { gridColumn: 'span 2' }],
+  },
+  {
+    id: 'top-plus-4-grid',
+    name: '顶部+四宫格',
+    panelCount: 5,
+    description: '页面布局如下：一个横跨整个页面宽度的分镜1在顶部。分镜2、3、4、5在下方形成一个2x2的网格。顺序为左上(2)、右上(3)、左下(4)、右下(5)。',
+    style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gridTemplateRows: 'auto 1fr 1fr', gap: '8px' },
+    panelStyles: [{ gridColumn: 'span 2' }, {}, {}, {}, {}],
+  },
   {
     id: '4-vertical-montage',
     name: '垂直四分镜',
@@ -134,5 +150,13 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     description: '创建一个没有分镜边框的、单一无缝的图像。分镜1、2、3中描述的场景应该相互融合、流动，没有清晰的分割线。此布局非常适用于表现梦境、回忆或意识流效果。',
     style: { display: 'flex', flexDirection: 'column', gap: '8px' },
     panelStyles: [{ flex: 1 }, { flex: 1 }, { flex: 1 }],
+  },
+  {
+    id: 'custom',
+    name: '自定义',
+    panelCount: 1, // Default, will be overridden
+    description: '用户自定义布局。', // Will be overridden
+    style: {}, // Not used by custom logic
+    panelStyles: [], // Not used by custom logic
   },
 ];

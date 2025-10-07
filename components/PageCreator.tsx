@@ -1,6 +1,6 @@
 
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Page, Character, Asset, Project, Scene, LayoutTemplate, Relationship } from '../types';
 import { CAMERA_SHOTS, LAYOUT_TEMPLATES } from '../constants';
 import { geminiService } from '../services/geminiService';
@@ -25,15 +25,35 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [finalPrompt, setFinalPrompt] = useState('');
   const [finalStory, setFinalStory] = useState('');
+  const [pageOutline, setPageOutline] = useState('');
+  
+  const [customLayoutConfig, setCustomLayoutConfig] = useState<number[]>([1]); // e.g., [1, 2] means 2 rows, 1 panel on top, 2 on bottom.
+
+  const finalSelectedLayout = useMemo<LayoutTemplate>(() => {
+    if (selectedLayout.id !== 'custom') {
+      return selectedLayout;
+    }
+
+    const panelCount = customLayoutConfig.reduce((sum, count) => sum + count, 0);
+    const description = `一个自定义布局，包含 ${customLayoutConfig.length} 行。` +
+        customLayoutConfig.map((count, index) => `第 ${index + 1} 行有 ${count} 个分镜。`).join(' ');
+
+    return {
+        ...LAYOUT_TEMPLATES.find(t => t.id === 'custom')!,
+        panelCount,
+        description,
+    };
+  }, [selectedLayout, customLayoutConfig]);
+
 
   useEffect(() => {
     setScenes(currentScenes => {
-      const newScenes = Array.from({ length: selectedLayout.panelCount }, (_, i) => {
+      const newScenes = Array.from({ length: finalSelectedLayout.panelCount }, (_, i) => {
         return currentScenes[i] || { sceneId: `scene-${Date.now()}-${i}`, description: '', cameraShot: CAMERA_SHOTS[0] };
       });
       return newScenes;
     });
-  }, [selectedLayout]);
+  }, [finalSelectedLayout.panelCount]);
   
   // Reset to single page mode if project format changes to webtoon
   useEffect(() => {
@@ -72,6 +92,12 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         )
     );
   };
+  
+    const handleAddRow = () => setCustomLayoutConfig(prev => [...prev, 1]);
+    const handleRemoveRow = () => setCustomLayoutConfig(prev => prev.length > 1 ? prev.slice(0, -1) : prev);
+    const handleColsChange = (rowIndex: number, newCols: number) => {
+        setCustomLayoutConfig(prev => prev.map((c, i) => i === rowIndex ? newCols : c));
+    };
 
   const buildPrompt = (
     currentLayout: LayoutTemplate, 
@@ -149,8 +175,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         setLoadingText('AI 正在撰写下一个场景...');
         
         let continuationDetails: Array<{ description: string; cameraShot: string; }> = [];
-        const panelCount = selectedLayout.panelCount;
-        const layoutDescription = selectedLayout.description;
+        const panelCount = finalSelectedLayout.panelCount;
+        const layoutDescription = finalSelectedLayout.description;
 
         const selectedChars = characters.filter(c => selectedCharIds.includes(c.characterId));
         const selectedAssets = assets.filter(a => selectedAssetIds.includes(a.assetId));
@@ -177,6 +203,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             CAMERA_SHOTS,
             selectedItemsPrompt,
             relationshipsPrompt,
+            pageOutline,
             contextImagePart
           );
           onClearContinuationContext();
@@ -188,7 +215,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             layoutDescription,
             CAMERA_SHOTS,
             selectedItemsPrompt,
-            relationshipsPrompt
+            relationshipsPrompt,
+            pageOutline
           );
         }
         
@@ -241,7 +269,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       );
 
       setLoadingText('AI 正在绘制您的漫画...');
-      const prompt = buildPrompt(selectedLayout, scenesForGeneration, selectedChars, selectedAssets, project, pageMode, colorMode);
+      const prompt = buildPrompt(finalSelectedLayout, scenesForGeneration, selectedChars, selectedAssets, project, pageMode, colorMode);
       const fullStoryText = scenesForGeneration.map((s, i) => `分镜 ${i+1}: ${s.description}`).join('\n\n');
       
       setFinalPrompt(prompt);
@@ -281,7 +309,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
     setIsModalOpen(false);
     setGeneratedImages([]);
     // Reset scenes and mode
-    setScenes(Array.from({ length: selectedLayout.panelCount }, (_, i) => ({
+    setScenes(Array.from({ length: finalSelectedLayout.panelCount }, (_, i) => ({
       sceneId: `scene-${Date.now()}-${i}`,
       description: '',
       cameraShot: CAMERA_SHOTS[0]
@@ -348,57 +376,149 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
               className={`cursor-pointer p-2 rounded-md transition-all border-2 ${selectedLayout.id === template.id ? 'border-indigo-500 bg-indigo-900' : 'border-gray-600 bg-gray-700 hover:bg-gray-600'}`}
               title={template.name}
             >
-              <div style={template.style} className="h-12 w-full">
-                {template.panelStyles.map((style, i) => (
-                  <div key={i} style={style} className="bg-gray-500 rounded-sm"></div>
-                ))}
-              </div>
+              {template.id === 'custom' ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }} className="h-12 w-full">
+                  {customLayoutConfig.map((cols, rowIndex) => (
+                      <div key={rowIndex} style={{ display: 'flex', flex: 1, gap: '4px' }}>
+                          {Array.from({ length: cols }).map((_, colIndex) => (
+                              <div key={colIndex} style={{ flex: 1 }} className="bg-gray-500 rounded-sm"></div>
+                          ))}
+                      </div>
+                  ))}
+                </div>
+              ) : (
+                <div style={template.style} className="h-12 w-full">
+                  {template.panelStyles.map((style, i) => (
+                    <div key={i} style={style} className="bg-gray-500 rounded-sm"></div>
+                  ))}
+                </div>
+              )}
               <p className="text-xs text-center mt-1 text-white truncate">{template.name}</p>
             </div>
           ))}
         </div>
       </div>
+      
+      {selectedLayout.id === 'custom' && (
+        <div className="p-4 bg-gray-700 rounded-lg mt-2 space-y-3">
+            <h4 className="text-md font-semibold text-white">自定义构图</h4>
+            {customLayoutConfig.map((cols, rowIndex) => (
+                <div key={rowIndex} className="flex items-center gap-3">
+                    <span className="text-sm text-gray-300 font-medium">第 {rowIndex + 1} 行:</span>
+                    <div className="flex items-center gap-2">
+                        {[1, 2, 3].map(colCount => (
+                            <button
+                                key={colCount}
+                                onClick={() => handleColsChange(rowIndex, colCount)}
+                                className={`px-3 py-1 text-xs rounded-md transition-colors ${cols === colCount ? 'bg-indigo-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}`}
+                            >
+                                {colCount} 分镜
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            ))}
+            <div className="flex gap-2 pt-2 border-t border-gray-600">
+                <button onClick={handleAddRow} className="text-sm px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-md font-semibold">添加行</button>
+                <button onClick={handleRemoveRow} disabled={customLayoutConfig.length <= 1} className="text-sm px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-md font-semibold disabled:opacity-50">删除最后一行</button>
+            </div>
+        </div>
+      )}
 
       <div>
          <label className="block text-sm font-medium text-gray-300 mb-2">填充分镜内容</label>
-         <div style={selectedLayout.style} className="w-full">
-            {scenes.map((scene, index) => (
-              <div key={scene.sceneId} style={selectedLayout.panelStyles[index]} className="p-3 bg-gray-700 rounded-lg space-y-2">
-                 <label className="block text-xs font-medium text-gray-400">分镜 {index + 1}</label>
-                <textarea
-                  rows={3}
-                  className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  value={scene.description}
-                  onChange={e => handleSceneChange(scene.sceneId, 'description', e.target.value)}
-                  placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
-                />
-                <select
-                    value={scene.cameraShot}
-                    onChange={e => handleSceneChange(scene.sceneId, 'cameraShot', e.target.value)}
-                    className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                  >
-                    {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
-                </select>
-              </div>
-            ))}
-         </div>
+         {(() => {
+            if (selectedLayout.id === 'custom') {
+              let sceneIndex = 0;
+              return (
+                <div className="w-full flex flex-col gap-2">
+                  {customLayoutConfig.map((cols, rowIndex) => (
+                    <div key={rowIndex} className="flex gap-2">
+                      {Array.from({ length: cols }).map((_, colIndex) => {
+                        const currentScene = scenes[sceneIndex];
+                        const currentIndex = sceneIndex;
+                        sceneIndex++;
+                        if (!currentScene) return null;
+                        return (
+                          <div key={currentScene.sceneId} style={{ flex: 1 }} className="p-3 bg-gray-700 rounded-lg space-y-2">
+                            <label className="block text-xs font-medium text-gray-400">分镜 {currentIndex + 1}</label>
+                            <textarea
+                              rows={3}
+                              className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              value={currentScene.description}
+                              onChange={e => handleSceneChange(currentScene.sceneId, 'description', e.target.value)}
+                              placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
+                            />
+                            <select
+                                value={currentScene.cameraShot}
+                                onChange={e => handleSceneChange(currentScene.sceneId, 'cameraShot', e.target.value)}
+                                className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                              >
+                                {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
+                            </select>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              );
+            } else {
+              return (
+                <div style={finalSelectedLayout.style} className="w-full">
+                  {scenes.map((scene, index) => (
+                    <div key={scene.sceneId} style={finalSelectedLayout.panelStyles[index]} className="p-3 bg-gray-700 rounded-lg space-y-2">
+                      <label className="block text-xs font-medium text-gray-400">分镜 {index + 1}</label>
+                      <textarea
+                        rows={3}
+                        className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        value={scene.description}
+                        onChange={e => handleSceneChange(scene.sceneId, 'description', e.target.value)}
+                        placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
+                      />
+                      <select
+                          value={scene.cameraShot}
+                          onChange={e => handleSceneChange(scene.sceneId, 'cameraShot', e.target.value)}
+                          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        >
+                          {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+          })()}
       </div>
-
-      <div className="flex flex-col sm:flex-row gap-3 pt-2">
-        <button
-          onClick={() => handleGenerate(false)}
-          disabled={isLoading || isStoryEmpty}
-          className="flex-1 w-full flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading && !loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2"/> {loadingText || '生成中...'}</> : '生成页面'}
-        </button>
-        <button
-          onClick={() => handleGenerate(true)}
-          disabled={isLoading || pages.length === 0}
-          className="flex-1 w-full flex justify-center items-center bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
-        >
-          {isLoading && loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2"/> {loadingText}</> : 'AI 续写'}
-        </button>
+      
+      <div className="space-y-3 pt-3">
+        <div>
+            <label htmlFor="page-outline" className="block text-sm font-medium text-gray-300 mb-1">页面大纲 (用于 AI 续写)</label>
+            <textarea
+                id="page-outline"
+                rows={2}
+                value={pageOutline}
+                onChange={e => setPageOutline(e.target.value)}
+                className="w-full bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                placeholder="为 AI 续写提供一个大致方向，例如：'主角遇到了一个神秘的老人，老人给了他一张地图。'"
+            />
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <button
+            onClick={() => handleGenerate(false)}
+            disabled={isLoading || isStoryEmpty}
+            className="flex-1 w-full flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+          >
+            {isLoading && !loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2"/> {loadingText || '生成中...'}</> : '生成页面'}
+          </button>
+          <button
+            onClick={() => handleGenerate(true)}
+            disabled={isLoading || pages.length === 0}
+            className="flex-1 w-full flex justify-center items-center bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+          >
+            {isLoading && loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2"/> {loadingText}</> : 'AI 续写'}
+          </button>
+        </div>
       </div>
       
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="选择您最喜欢的画稿">
