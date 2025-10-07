@@ -12,7 +12,7 @@ import { toBase64FromUrl } from '../utils';
 
 const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, pages, relationships, onAddPage, continuationContext, onClearContinuationContext }) => {
   const [scenes, setScenes] = useState<Scene[]>([]);
-  const [selectedLayout, setSelectedLayout] = useState<LayoutTemplate>(LAYOUT_TEMPLATES[0]);
+  const [selectedLayout, setSelectedLayout] = useState<LayoutTemplate>(LAYOUT_TEMPLATES[2]);
   const [pageMode, setPageMode] = useState<PageMode>(PageMode.SINGLE);
   const [colorMode, setColorMode] = useState<'color' | 'bw'>('color');
 
@@ -227,18 +227,12 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       if (isContinuation) {
         setLoadingText('AI 正在撰写下一个场景...');
         
-        let continuationDetails: Array<{ description: string; cameraShot: string; }> = [];
+        let continuationDetails: Array<{ description: string; cameraShot: string; characterIds: string[] }> = [];
         const panelCount = finalSelectedLayout.panelCount;
         const layoutDescription = finalSelectedLayout.description;
 
         const selectedChars = characters.filter(c => selectedCharIdsForContinuation.includes(c.characterId));
-        const selectedAssets = assets.filter(a => selectedAssetIdsForContinuation.includes(a.assetId));
-        const allSelectedItems = [...selectedChars, ...selectedAssets];
         const allItemsMap = new Map([...characters, ...assets].map(item => [('characterId' in item) ? item.characterId : item.assetId, item]));
-
-        const selectedItemsPrompt = allSelectedItems.length > 0
-            ? `${allSelectedItems.map(item => `“${item.name}” (核心设定: ${item.corePrompt})`).join('；')}。`
-            : '';
 
         const allSelectedIds = new Set([...selectedCharIdsForContinuation, ...selectedAssetIdsForContinuation]);
         const relevantRelationships = relationships.filter(r => allSelectedIds.has(r.entity1Id) && allSelectedIds.has(r.entity2Id));
@@ -254,7 +248,9 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             panelCount, 
             layoutDescription,
             CAMERA_SHOTS,
-            selectedItemsPrompt,
+            characters,
+            scenes,
+            selectedChars,
             relationshipsPrompt,
             pageOutline,
             contextImagePart
@@ -267,7 +263,9 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             panelCount, 
             layoutDescription,
             CAMERA_SHOTS,
-            selectedItemsPrompt,
+            characters,
+            scenes,
+            selectedChars,
             relationshipsPrompt,
             pageOutline
           );
@@ -285,7 +283,8 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
             return {
               ...scene,
               description: detail.description || '',
-              cameraShot: validCameraShot
+              cameraShot: validCameraShot,
+              characterIds: detail.characterIds || [],
             };
           });
           setScenes(newScenes);

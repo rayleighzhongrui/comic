@@ -3,6 +3,7 @@
 // It requires a valid API key to be set in the environment variables.
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
+import type { Character, Scene } from '../types';
 
 // A function to get a random placeholder image in case of API failure
 const getPlaceholderImage = (width = 1024, height = 1024) => {
@@ -264,13 +265,35 @@ export const geminiService = {
     panelCount: number,
     layoutDescription: string,
     availableCameraShots: string[],
-    selectedItemsPrompt: string,
+    allCharacters: Character[],
+    initialScenes: Scene[],
+    mainCharacters: Character[],
     relationshipsPrompt: string,
     pageOutline: string,
     contextImage?: { mimeType: string; data: string }
-  ): Promise<Array<{ description: string; cameraShot: string }>> => {
+  ): Promise<Array<{ description: string; cameraShot: string; characterIds: string[] }>> => {
+    
+    const charIdToName = new Map(allCharacters.map(c => [c.characterId, c.name]));
+    const charNameToId = new Map(allCharacters.map(c => [c.name, c.characterId]));
     
     const parts = [];
+
+    let characterPool: Character[];
+    let characterPoolDescription: string;
+
+    if (mainCharacters.length > 0) {
+        characterPool = mainCharacters;
+        characterPoolDescription = `故事必须只围绕这些【主要角色】展开：${mainCharacters.map(c => `“${c.name}”`).join('、')}。`;
+    } else {
+        characterPool = allCharacters;
+        if (allCharacters.length > 0) {
+          characterPoolDescription = `故事可以从项目中的【任何角色】中选择：${allCharacters.map(c => `“${c.name}”`).join('、')}。`;
+        } else {
+          characterPoolDescription = '故事中不应出现任何角色。';
+        }
+    }
+    const characterPoolNames = characterPool.map(c => c.name);
+    
     let prompt = `你是一位富有创意的漫画导演和编剧。到目前为止的故事是：“${previousStory}”。\n`;
     prompt += `现在，请为下一页续写故事。这一页有一个特殊的布局：“${layoutDescription}”，它包含 ${panelCount} 个分镜。\n`;
     
@@ -278,28 +301,40 @@ export const geminiService = {
       prompt += `你的核心任务是创作接下来 ${panelCount} 个分镜的具体内容，并且必须严格围绕【本页故事大纲】：“${pageOutline}”来展开。\n`;
     }
 
-    if (selectedItemsPrompt) {
-        prompt += `在创作时，请确保故事围绕这些【主要角色/道具】展开：${selectedItemsPrompt}\n`;
-    }
+    prompt += `\n【角色使用规则】:\n${characterPoolDescription}\n`;
+    
+    const presetScenesText = initialScenes.map((scene, i) => {
+        const charNames = (scene.characterIds || []).map(id => charIdToName.get(id)).filter(Boolean);
+        return `- 分镜 ${i + 1}: ${charNames.length > 0 ? `已预设，必须出现角色 [${charNames.join(', ')}]` : '未预设角色'}`;
+    }).join('\n');
+    prompt += `\n【分镜角色预设】:\n${presetScenesText}\n`;
 
     if (relationshipsPrompt) {
-      prompt += `请在故事中体现这些【重要关系】：${relationshipsPrompt}\n`;
+      prompt += `\n请在故事中体现这些【重要关系】：${relationshipsPrompt}\n`;
     }
 
     if (contextImage) {
-      prompt += "请特别参考这张图片作为接下来剧情的上下文。\n";
+      prompt += "\n请特别参考这张图片作为接下来剧情的上下文。\n";
       parts.push({ inlineData: { mimeType: contextImage.mimeType, data: contextImage.data } });
     }
     
-    prompt += `你的任务是为这 ${panelCount} 个分镜中的【每一个】都提供：\n`;
-    prompt += `1. 一个简洁、生动的故事描述。\n`;
-    prompt += `2. 一个最适合该描述的【分镜镜头】。\n`;
-    prompt += `请从以下列表中精确选择分镜镜头：[${availableCameraShots.join(', ')}]\n`;
-    prompt += `请以JSON格式提供你的回答。JSON对象应包含一个名为 "panel_details" 的键，其值为一个包含 ${panelCount} 个对象的数组。每个对象都必须有两个键："description" (故事描述) 和 "camera_shot" (从列表中选择的分镜镜头)。`;
+    prompt += `\n**你的任务是:**\n`;
+    prompt += `1. **故事创作**: 为全部 ${panelCount} 个分镜创作连贯的故事。故事必须严格遵守上面的【角色使用规则】。\n`;
+    prompt += `2. **角色分配**:\n`;
+    prompt += `   - 对于【已预设角色】的分镜，故事必须围绕他们展开。\n`;
+    if (characterPoolNames.length > 0) {
+        prompt += `   - 对于【未预设角色】的分镜，你【必须】从以下角色列表中选择角色出场：[${characterPoolNames.join(', ')}]。绝对不能使用此列表之外的任何角色。\n`;
+    } else {
+        prompt += `   - 对于【未预设角色】的分镜，不能安排任何角色出场。\n`;
+    }
+    prompt += `3. **提供描述**: 为每个分镜提供一个简洁、生动的故事描述。\n`;
+    prompt += `4. **选择镜头**: 为每个分镜从以下列表中精确选择一个最适合的【分镜镜头】：[${availableCameraShots.join(', ')}]\n`;
+    prompt += `5. **明确角色**: 为每个分镜明确指出最终出场的【所有角色名字】。如果分镜中没有角色，则返回一个空数组。\n`;
+    prompt += `\n请以JSON格式提供你的回答。JSON对象应包含一个名为 "panel_details" 的键，其值为一个包含 ${panelCount} 个对象的数组。每个对象都必须有三个键："description" (故事描述), "camera_shot" (分镜镜头), 和 "characters" (出场角色名字的数组)。`;
 
     parts.unshift({ text: prompt });
     
-    console.log("Generating story continuation for multiple panels with camera shots:", { prompt, panelCount });
+    console.log("Generating story continuation with STRICT character logic:", { prompt, panelCount });
     
     try {
         const response = await ai.models.generateContent({
@@ -323,9 +358,16 @@ export const geminiService = {
                       camera_shot: {
                         type: Type.STRING,
                         description: "从提供的列表中选择的分镜镜头。"
+                      },
+                      characters: {
+                        type: Type.ARRAY,
+                        description: "出场角色的名字数组。",
+                        items: {
+                          type: Type.STRING,
+                        }
                       }
                     },
-                    required: ["description", "camera_shot"]
+                    required: ["description", "camera_shot", "characters"]
                   }
                 }
               },
@@ -338,8 +380,24 @@ export const geminiService = {
         const parsedResult = JSON.parse(resultText);
 
         if (parsedResult.panel_details && Array.isArray(parsedResult.panel_details)) {
-          const details = parsedResult.panel_details;
-          const finalDetails = Array.from({ length: panelCount }, (_, i) => details[i] || { description: "", cameraShot: availableCameraShots[0] });
+          const details: any[] = parsedResult.panel_details;
+
+          const finalDetails = Array.from({ length: panelCount }, (_, i) => {
+              const detail = details[i];
+              if (!detail) {
+                  return { description: "", cameraShot: availableCameraShots[0], characterIds: [] };
+              }
+              const characterIds = (detail.characters || [])
+                .map((name: string) => charNameToId.get(name))
+                .filter(Boolean);
+              
+              return {
+                  description: detail.description,
+                  cameraShot: detail.camera_shot,
+                  characterIds,
+              };
+          });
+
           return finalDetails;
         }
         throw new Error("Invalid JSON structure returned from AI.");
@@ -349,7 +407,8 @@ export const geminiService = {
       const fallbackMessage = "发生意外错误。英雄停顿了一下，不知道接下来该做什么。";
       return Array.from({ length: panelCount }, (_, i) => ({ 
         description: i === 0 ? fallbackMessage : "", 
-        cameraShot: availableCameraShots[0] 
+        cameraShot: availableCameraShots[0],
+        characterIds: [],
       }));
     }
   },
