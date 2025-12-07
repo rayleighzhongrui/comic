@@ -25,7 +25,8 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   useEffect(() => {
-    endOfPagesRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Use 'nearest' to avoid aggressive scrolling of parent containers
+    endOfPagesRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }, [pages]);
 
   useEffect(() => {
@@ -99,7 +100,7 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
       currentY += img.height;
     });
 
-    const imageBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    const imageBlob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, 'image/png'));
     if (imageBlob) {
         zip.file(`${project.projectName}_webtoon.png`, imageBlob);
     }
@@ -370,7 +371,10 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
     {editingPage && (
       <ImageEditorModal 
         imageUrl={editingPage.imageUrl}
-        aspectRatio={editingPage.mode === PageMode.SPREAD ? '4:3' : '2:3'}
+        aspectRatio={
+            project.format === ComicFormat.WEBTOON ? '9:16' : 
+            editingPage.mode === PageMode.SPREAD ? '4:3' : '3:4'
+        }
         onClose={() => setEditingPage(null)}
         onSave={(newImageUrl) => {
           onUpdatePage({ ...editingPage, imageUrl: newImageUrl });

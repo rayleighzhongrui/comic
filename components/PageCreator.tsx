@@ -176,14 +176,18 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
           characterSheet = '**参考资料:** 未提供特定角色参考。';
       }
       
-      const isSpread = currentProject.format === ComicFormat.PAGE && currentPageMode === PageMode.SPREAD;
-      const aspectRatioInstruction = isSpread
-        ? 'ABSOLUTE REQUIREMENT: The output image MUST BE LANDSCAPE with a strict 4:3 aspect ratio, representing a two-page spread. DO NOT generate a portrait image. This is the most important instruction.'
-        : 'ABSOLUTE REQUIREMENT: The output image MUST BE PORTRAIT with a strict 2:3 aspect ratio. DO NOT generate a landscape image. This is the most important instruction.';
+      let aspectRatioInstruction = '';
+      if (currentProject.format === ComicFormat.WEBTOON) {
+           aspectRatioInstruction = 'ABSOLUTE REQUIREMENT: The output image MUST BE PORTRAIT with a strict 9:16 aspect ratio (Webtoon format).';
+      } else if (currentPageMode === PageMode.SPREAD) {
+           aspectRatioInstruction = 'ABSOLUTE REQUIREMENT: The output image MUST BE LANDSCAPE with a strict 4:3 aspect ratio, representing a two-page spread.';
+      } else {
+           aspectRatioInstruction = 'ABSOLUTE REQUIREMENT: The output image MUST BE PORTRAIT with a strict 3:4 aspect ratio (Standard Manga Page).';
+      }
 
       let mainInstruction = '';
       if (currentProject.format === ComicFormat.PAGE) {
-          mainInstruction = isSpread
+          mainInstruction = currentPageMode === PageMode.SPREAD
               ? '创建一个单一、统一的漫画风格图片，该图片为一个横版的跨页大图（double-page spread），其中包含按照指定布局排列的多个分镜。这种跨页用于营造宏大、有冲击力的场景，为翻页阅读的读者带来惊喜。'
               : '创建一个单一、统一的漫画风格图片，该图片为一个标准的竖版漫画页（comic page），其中包含按照指定布局排列的多个分镜。你需要注重复杂、多变的构图，以控制翻页阅读的节奏。';
       } else { // Webtoon
@@ -357,8 +361,18 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       
       setFinalPrompt(prompt);
       setFinalStory(fullStoryText);
+      
+      // Determine Aspect Ratio based on rules
+      let aspectRatio = "3:4";
+      if (project.format === ComicFormat.WEBTOON) {
+          aspectRatio = "9:16";
+      } else if (pageMode === PageMode.SPREAD) {
+          aspectRatio = "4:3";
+      } else {
+          aspectRatio = "3:4";
+      }
 
-      const images = await geminiService.generateComicPanels(prompt, imageParts, seedToUse);
+      const images = await geminiService.generateComicPanels(prompt, imageParts, aspectRatio, seedToUse);
       
       const processedImages = await Promise.all(
         images.map(async (imgUrl) => {

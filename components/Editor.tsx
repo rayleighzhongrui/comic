@@ -97,7 +97,7 @@ const Editor: React.FC<EditorProps> = (props) => {
 
   return (
     <>
-      <div className="min-h-screen bg-yellow-400 p-4 font-sans relative overflow-hidden">
+      <div className="lg:h-screen min-h-screen bg-yellow-400 p-4 font-sans relative lg:overflow-hidden overflow-auto flex flex-col">
         {/* Background Patterns */}
         <div 
             className="absolute inset-0 opacity-10 pointer-events-none"
@@ -108,7 +108,7 @@ const Editor: React.FC<EditorProps> = (props) => {
         ></div>
         <div className="absolute inset-0 pointer-events-none opacity-5 bg-[conic-gradient(from_0deg_at_50%_50%,white_0deg,transparent_2deg,transparent_5deg,white_7deg)]"></div>
 
-        <header className="relative z-10 mb-6 flex justify-between items-center bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-sm">
+        <header className="flex-none relative z-10 mb-4 flex justify-between items-center bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-sm">
           <div>
             <h1 className="text-3xl font-black italic tracking-tighter text-black uppercase transform -skew-x-6">
                 AI MANGA CREATOR
@@ -130,10 +130,11 @@ const Editor: React.FC<EditorProps> = (props) => {
           </button>
         </header>
 
-        <main className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-110px)]">
+        <main className="flex-1 lg:min-h-0 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
           
           {/* Left Panel: Asset Management */}
-          <div className="lg:col-span-3 h-full overflow-y-auto pr-1">
+          {/* On desktop (lg), it takes height of parent (grid) and manages own scroll. On mobile, it takes auto height. */}
+          <div className="lg:col-span-3 lg:h-full h-auto lg:overflow-hidden pr-1">
             <AssetManager
               project={project}
               characters={characters}
@@ -152,7 +153,8 @@ const Editor: React.FC<EditorProps> = (props) => {
           </div>
           
           {/* Center Panel: Page Display */}
-          <div className="lg:col-span-5 h-full">
+          {/* Fixed height on mobile to ensure internal scroll works, full height on desktop. */}
+          <div className="lg:col-span-5 lg:h-full h-[60vh] lg:overflow-hidden">
             <PageDisplay 
               project={project} 
               pages={pages}
@@ -163,7 +165,8 @@ const Editor: React.FC<EditorProps> = (props) => {
           </div>
           
           {/* Right Panel: Page Creation */}
-          <div id="page-creator-panel" className="lg:col-span-4 h-full overflow-y-auto pl-1">
+          {/* Wrapper manages scroll on desktop. On mobile, it grows and window scrolls. */}
+          <div id="page-creator-panel" className="lg:col-span-4 lg:h-full h-auto lg:overflow-y-auto pl-1">
             <PageCreator
               project={project}
               characters={characters}

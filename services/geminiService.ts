@@ -1,3 +1,4 @@
+
 // @ts-nocheck
 // This service connects to the Google Gemini API.
 // It requires a valid API key to be set in the environment variables.
@@ -99,9 +100,11 @@ export const geminiService = {
    * Generates comic panel images using a multi-modal prompt with gemini-2.5-flash-image.
    * Takes a text prompt and reference images to maintain character consistency.
    * Includes a retry mechanism for robustness.
+   * 
+   * @param aspectRatio - The aspect ratio for the generated image (e.g., "3:4", "4:3", "9:16").
    */
-  generateComicPanels: async (prompt: string, referenceImages: { mimeType: string; data: string }[], seed?: number): Promise<string[]> => {
-    console.log("Generating comic panels with multimodal prompt:", { prompt, referenceImagesCount: referenceImages.length, seed });
+  generateComicPanels: async (prompt: string, referenceImages: { mimeType: string; data: string }[], aspectRatio: string, seed?: number): Promise<string[]> => {
+    console.log("Generating comic panels with multimodal prompt:", { prompt, referenceImagesCount: referenceImages.length, seed, aspectRatio });
     
     const imageParts = referenceImages.map(img => ({
       inlineData: {
@@ -112,6 +115,9 @@ export const geminiService = {
 
     const config: any = {
       responseModalities: [Modality.IMAGE, Modality.TEXT],
+      imageConfig: {
+        aspectRatio: aspectRatio,
+      },
     };
 
     if (typeof seed === 'number') {

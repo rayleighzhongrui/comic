@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import Modal from './Modal';
 import LoadingSpinner from './LoadingSpinner';
 import type { Page, Project } from '../types';
-import { PageMode } from '../types';
+import { PageMode, ComicFormat } from '../types';
 import { geminiService } from '../services/geminiService';
 import { toBase64FromUrl } from '../utils';
 
@@ -13,12 +14,18 @@ interface AspectRatioModalProps {
   onUpdatePage: (page: Page) => void;
 }
 
-const AspectRatioModal: React.FC<AspectRatioModalProps> = ({ page, onClose, onUpdatePage }) => {
+const AspectRatioModal: React.FC<AspectRatioModalProps> = ({ project, page, onClose, onUpdatePage }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
   const [imageInfo, setImageInfo] = useState<{ width: number; height: number; ratio: number } | null>(null);
 
-  const targetRatio = page.mode === PageMode.SPREAD ? 4 / 3 : 2 / 3;
+  // Determine target ratio based on format and mode
+  let targetRatio = 3 / 4; // Default standard page
+  if (project.format === ComicFormat.WEBTOON) {
+      targetRatio = 9 / 16;
+  } else if (page.mode === PageMode.SPREAD) {
+      targetRatio = 4 / 3;
+  }
 
   useEffect(() => {
     const img = new Image();
@@ -140,6 +147,12 @@ const AspectRatioModal: React.FC<AspectRatioModalProps> = ({ page, onClose, onUp
 
   const isCorrectRatio = imageInfo ? Math.abs(imageInfo.ratio - targetRatio) < 0.01 : false;
 
+  const getTargetRatioString = () => {
+      if (project.format === ComicFormat.WEBTOON) return '9:16';
+      if (page.mode === PageMode.SPREAD) return '4:3';
+      return '3:4';
+  };
+
   return (
     <Modal isOpen={true} onClose={onClose} title="调整页面比例" size="5xl">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -159,7 +172,7 @@ const AspectRatioModal: React.FC<AspectRatioModalProps> = ({ page, onClose, onUp
                         <p className="text-sm">
                             当前: {imageInfo.width}x{imageInfo.height} (比例: {(imageInfo.ratio).toFixed(2)})
                             <br />
-                            目标: {page.mode === PageMode.SPREAD ? '4:3' : '2:3'} (比例: {targetRatio.toFixed(2)})
+                            目标: {getTargetRatioString()} (比例: {targetRatio.toFixed(2)})
                         </p>
                     )}
                 </div>
