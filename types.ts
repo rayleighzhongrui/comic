@@ -1,5 +1,8 @@
 
 
+// Fix: Import CSSProperties from React to resolve type errors.
+import type { CSSProperties } from 'react';
+
 export enum ComicFormat {
   WEBTOON = 'webtoon',
   PAGE = 'page',
@@ -68,6 +71,8 @@ export interface LayoutTemplate {
   name: string;
   panelCount: number;
   description: string; // The instruction for the AI on how to lay out the panels
-  style: React.CSSProperties; // For rendering the layout preview
-  panelStyles: React.CSSProperties[]; // For styling individual scene inputs
+  // Fix: Use the imported CSSProperties type instead of React.CSSProperties.
+  style: CSSProperties; // For rendering the layout preview
+  // Fix: Use the imported CSSProperties type instead of React.CSSProperties.
+  panelStyles: CSSProperties[]; // For styling individual scene inputs
 }

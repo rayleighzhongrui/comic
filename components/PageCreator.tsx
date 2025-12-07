@@ -1,5 +1,6 @@
 
 
+
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Page, Character, Asset, Project, Scene, LayoutTemplate, Relationship } from '../types';
 import { CAMERA_SHOTS, LAYOUT_TEMPLATES } from '../constants';
@@ -512,6 +513,23 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
                                           title={char.name}
                                           onClick={() => handleSceneItemToggle(scene.sceneId, char.characterId, 'character')}
                                           className={`w-10 h-10 object-cover rounded-md cursor-pointer border-2 transition-all ${scene.characterIds?.includes(char.characterId) ? 'border-indigo-500' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                                      />
+                                  ))}
+                              </div>
+                          </div>
+                      )}
+                      {assets.length > 0 && (
+                          <div className="pt-2">
+                              <label className="block text-xs font-medium text-gray-400 mb-1">出场道具 & 特征</label>
+                              <div className="flex flex-wrap gap-2">
+                                  {assets.map(asset => (
+                                      <img
+                                          key={asset.assetId}
+                                          src={asset.referenceImageUrl}
+                                          alt={asset.name}
+                                          title={asset.name}
+                                          onClick={() => handleSceneItemToggle(scene.sceneId, asset.assetId, 'asset')}
+                                          className={`w-10 h-10 object-cover rounded-md cursor-pointer border-2 transition-all ${scene.assetIds?.includes(asset.assetId) ? 'border-indigo-500' : 'border-transparent opacity-50 hover:opacity-100'}`}
                                       />
                                   ))}
                               </div>

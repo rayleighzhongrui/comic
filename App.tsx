@@ -20,6 +20,28 @@ const App: React.FC = () => {
     setRelationships([]);
   }, []);
 
+  const handleImportProject = useCallback((jsonString: string) => {
+    try {
+      const data = JSON.parse(jsonString);
+
+      // The only required field is 'project'. Everything else is optional.
+      if (data.project) {
+        setProject(data.project);
+        // If a key is missing from the export, default to an empty array.
+        setCharacters(data.characters || []);
+        setAssets(data.assets || []);
+        setPages(data.pages || []);
+        setRelationships(data.relationships || []);
+        console.log("Project imported successfully!");
+      } else {
+        throw new Error("Invalid project file format: 'project' data is missing.");
+      }
+    } catch (error) {
+      console.error("Failed to import project:", error);
+      alert("导入项目失败。请确保您选择了一个有效的项目 .json 文件。");
+    }
+  }, []);
+
   const handleAddCharacter = useCallback((character: Character) => {
     setCharacters(prev => [...prev, character]);
   }, []);
@@ -77,7 +99,7 @@ const App: React.FC = () => {
 
 
   if (!project) {
-    return <ProjectCreation onCreateProject={handleCreateProject} />;
+    return <ProjectCreation onCreateProject={handleCreateProject} onImportProject={handleImportProject} />;
   }
 
   return (

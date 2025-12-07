@@ -1,16 +1,19 @@
-import React, { useState } from 'react';
+
+import React, { useState, useRef } from 'react';
 // Fix: 'DrawingStyle' is an enum used as a value, so it must be a regular import, not a type-only import.
 import { type Project, type ComicFormat, DrawingStyle } from '../types';
 import { DRAWING_STYLES, COMIC_FORMATS } from '../constants';
 
 interface ProjectCreationProps {
   onCreateProject: (project: Project) => void;
+  onImportProject: (projectData: string) => void;
 }
 
-const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject }) => {
+const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onImportProject }) => {
   const [projectName, setProjectName] = useState('');
   const [format, setFormat] = useState<ComicFormat>(COMIC_FORMATS[0].id);
   const [style, setStyle] = useState<DrawingStyle>(DRAWING_STYLES[0].id);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +32,35 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject }) =>
       stylePrompt: selectedStyle ? selectedStyle.id : DrawingStyle.JAPANESE_SHONEN,
     });
   };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        onImportProject(content);
+      } else {
+        alert("无法读取文件内容。");
+      }
+    };
+    reader.onerror = () => {
+        alert("读取文件时出错。");
+    };
+    reader.readAsText(file);
+
+    // Reset the input value to allow re-selecting the same file
+    e.target.value = '';
+  };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -84,6 +116,30 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject }) =>
             </button>
           </div>
         </form>
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-600"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-gray-800 text-gray-400">或</span>
+          </div>
+        </div>
+        <div>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".json"
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={handleImportClick}
+            className="group relative w-full flex justify-center py-2 px-4 border border-gray-500 text-sm font-medium rounded-md text-white bg-gray-700 hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 focus:ring-offset-gray-800"
+          >
+            导入项目 (.json)
+          </button>
+        </div>
       </div>
     </div>
   );
