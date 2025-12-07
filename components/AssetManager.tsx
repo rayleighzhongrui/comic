@@ -22,6 +22,7 @@ interface AssetSectionProps<T extends Character | Asset> {
 const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, onEditItem, onDeleteItem, placeholder, project, type }: AssetSectionProps<T>) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [seed, setSeed] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
@@ -47,7 +48,7 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
       if (!imageUrl) {
         const typeName = type === 'character' ? '角色' : '道具';
         const prompt = `${project.stylePrompt}, ${typeName}设定集, 名为${name}的${typeName}的全身视图, 描述为: ${description}`;
-        const images = await geminiService.generateReferenceImage(prompt);
+        const images = await geminiService.generateReferenceImage(prompt, seed);
         imageUrl = images[0];
       }
       
@@ -76,6 +77,7 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
       setName('');
       setDescription('');
       setUploadedImage(null);
+      // We do not reset seed immediately to allow user to reuse lucky seed
     } catch (error) {
       console.error(`Error generating ${type}:`, error);
       alert(`生成${type === 'character' ? '角色' : '道具'}失败。请重试。`);
@@ -101,8 +103,8 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
         {items.map(item => {
             const itemId = 'characterId' in item ? item.characterId : item.assetId;
             return (
-              <div key={itemId} className="group relative bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-pointer" title={item.name}>
-                <div onClick={() => onEditItem(item)} className="p-1">
+              <div key={itemId} className="group relative bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] hover:z-20 transition-all" title={item.name}>
+                <div onClick={() => onEditItem(item)} className="p-1 cursor-pointer">
                     <img src={item.referenceImageUrl} alt={item.name} className="w-full h-auto aspect-square object-cover border border-black" />
                     <div className="mt-1 text-center bg-black">
                         <span className="text-white text-xs font-bold truncate block px-1 py-0.5">{item.name}</span>
@@ -111,14 +113,14 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
                  <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        if (window.confirm(`确定要删除“${item.name}”吗？此操作无法撤销。`)) {
-                            onDeleteItem(itemId);
-                        }
+                        e.preventDefault();
+                        onDeleteItem(itemId);
                     }}
-                    className="absolute -top-2 -right-2 bg-red-600 border-2 border-black text-white w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-700 transition-all z-10 shadow-sm"
+                    className="absolute -top-3 -right-3 bg-red-600 border-2 border-black text-white w-7 h-7 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-700 hover:scale-110 transition-all z-50 shadow-sm cursor-pointer"
                     aria-label={`删除 ${item.name}`}
+                    title="删除"
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
                         <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                 </button>
@@ -150,6 +152,29 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
           className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all placeholder-gray-400"
           disabled={isLoading}
         />
+        
+        {/* Seed Input */}
+        <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-black uppercase w-12">SEED</span>
+            <input
+                type="number"
+                value={seed === undefined ? '' : seed}
+                onChange={e => setSeed(e.target.value ? parseInt(e.target.value) : undefined)}
+                placeholder="随机 (默认)"
+                className="flex-1 bg-white text-black border-2 border-black rounded-sm px-2 py-1 text-xs font-bold focus:outline-none focus:bg-yellow-50"
+                disabled={isLoading}
+            />
+             <button
+                type="button"
+                onClick={() => setSeed(Math.floor(Math.random() * 1000000))}
+                className="px-2 py-1 bg-gray-200 hover:bg-gray-300 border-2 border-black text-black font-bold text-xs"
+                title="随机生成一个种子"
+            >
+                🎲
+            </button>
+        </div>
+
+
          <div className="mt-1">
           <label className="text-xs font-bold text-black uppercase">REF IMAGE (OPTIONAL)</label>
           <div className="mt-1 flex items-center gap-4">

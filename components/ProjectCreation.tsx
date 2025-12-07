@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 // Fix: 'DrawingStyle' is an enum used as a value, so it must be a regular import, not a type-only import.
 import { type Project, type ComicFormat, DrawingStyle } from '../types';
@@ -7,9 +6,11 @@ import { DRAWING_STYLES, COMIC_FORMATS } from '../constants';
 interface ProjectCreationProps {
   onCreateProject: (project: Project) => void;
   onImportProject: (projectData: string) => void;
+  hasBackup?: boolean;
+  onLoadBackup?: () => void;
 }
 
-const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onImportProject }) => {
+const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onImportProject, hasBackup, onLoadBackup }) => {
   const [projectName, setProjectName] = useState('');
   const [format, setFormat] = useState<ComicFormat>(COMIC_FORMATS[0].id);
   const [style, setStyle] = useState<DrawingStyle>(DRAWING_STYLES[0].id);
@@ -179,8 +180,18 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
               </div>
             </div>
 
-            {/* Secondary Action */}
-            <div>
+            {/* Secondary Actions */}
+            <div className="space-y-4">
+              {hasBackup && onLoadBackup && (
+                  <button
+                    type="button"
+                    onClick={onLoadBackup}
+                    className="group relative w-full flex justify-center py-3 px-4 border-4 border-black text-lg font-black text-black bg-yellow-300 hover:bg-yellow-200 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] transition-all focus:outline-none uppercase"
+                  >
+                    <span>🔄</span> RESUME SESSION / 恢复上次进度
+                  </button>
+              )}
+
               <input
                 type="file"
                 ref={fileInputRef}

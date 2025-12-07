@@ -28,6 +28,32 @@ const getPlaceholderImage = (width = 1024, height = 1024) => {
     return canvas.toDataURL('image/png');
 };
 
+/**
+ * Helper to clean up the AI response text before parsing as JSON.
+ * It removes Markdown code blocks and extra conversational text.
+ */
+const cleanJsonText = (text: string): string => {
+  let cleaned = text;
+  
+  // 1. Remove Markdown code blocks (e.g. ```json ... ```)
+  // This regex matches ```json (content) ``` or just ``` (content) ```
+  const markdownRegex = /^```(?:json)?\s*([\s\S]*?)\s*```$/i;
+  const match = cleaned.match(markdownRegex);
+  if (match) {
+    cleaned = match[1];
+  }
+
+  // 2. Find the first '{' and last '}' to strip preamble/postscript text
+  const firstOpen = cleaned.indexOf('{');
+  const lastClose = cleaned.lastIndexOf('}');
+  
+  if (firstOpen !== -1 && lastClose !== -1 && lastClose > firstOpen) {
+    cleaned = cleaned.substring(firstOpen, lastClose + 1);
+  }
+
+  return cleaned;
+};
+
 
 // This should be initialized with a real API key in a production environment.
 // It is assumed that `process.env.API_KEY` is available.
@@ -37,17 +63,28 @@ export const geminiService = {
   /**
    * Generates a reference image for a character or asset using imagen-4.0-generate-001.
    */
-  generateReferenceImage: async (prompt: string): Promise<string[]> => {
-    console.log("Generating reference image with prompt:", prompt);
+  generateReferenceImage: async (prompt: string, seed?: number): Promise<string[]> => {
+    console.log("Generating reference image with prompt:", prompt, "Seed:", seed);
     try {
+      const config: any = {
+        numberOfImages: 1,
+        outputMimeType: 'image/jpeg',
+        aspectRatio: '1:1',
+      };
+      
+      // Only add seed if it's defined
+      if (typeof seed === 'number') {
+        // Imagen models might use 'randomSeed' or just rely on regeneration, 
+        // but for GenAI SDK consistency with other calls we check support.
+        // Currently Imagen via GenAI SDK might not fully expose seed control in the same way as generateContent,
+        // but passing it in config is the standard way if supported. 
+        // Note: For Imagen, strict seed control varies by specific model version.
+      }
+
       const response = await ai.models.generateImages({
           model: 'imagen-4.0-generate-001',
           prompt: prompt,
-          config: {
-            numberOfImages: 1,
-            outputMimeType: 'image/jpeg',
-            aspectRatio: '1:1',
-          },
+          config: config,
       });
       const base64ImageBytes = response.generatedImages[0].image.imageBytes;
       return [`data:image/jpeg;base64,${base64ImageBytes}`];
@@ -63,8 +100,8 @@ export const geminiService = {
    * Takes a text prompt and reference images to maintain character consistency.
    * Includes a retry mechanism for robustness.
    */
-  generateComicPanels: async (prompt: string, referenceImages: { mimeType: string; data: string }[]): Promise<string[]> => {
-    console.log("Generating comic panels with multimodal prompt:", { prompt, referenceImagesCount: referenceImages.length });
+  generateComicPanels: async (prompt: string, referenceImages: { mimeType: string; data: string }[], seed?: number): Promise<string[]> => {
+    console.log("Generating comic panels with multimodal prompt:", { prompt, referenceImagesCount: referenceImages.length, seed });
     
     const imageParts = referenceImages.map(img => ({
       inlineData: {
@@ -72,6 +109,14 @@ export const geminiService = {
         data: img.data,
       },
     }));
+
+    const config: any = {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+    };
+
+    if (typeof seed === 'number') {
+      config.seed = seed;
+    }
 
     const contentRequest = {
       model: 'gemini-2.5-flash-image',
@@ -81,9 +126,7 @@ export const geminiService = {
           ...imageParts,
         ],
       },
-      config: {
-        responseModalities: [Modality.IMAGE, Modality.TEXT],
-      },
+      config: config,
     };
 
     /**
@@ -133,9 +176,10 @@ export const geminiService = {
     prompt: string, 
     originalImage: { mimeType: string; data: string }, 
     maskImage: { mimeType: string; data: string },
-    referenceImage?: { mimeType: string; data: string }
+    referenceImage?: { mimeType: string; data: string },
+    seed?: number
   ): Promise<string> => {
-    console.log("Editing comic panel with prompt:", prompt);
+    console.log("Editing comic panel with prompt:", prompt, "Seed:", seed);
     
     let userInstruction = prompt;
     // Keywords for removal/inpainting tasks in both English and Chinese
@@ -181,12 +225,17 @@ export const geminiService = {
     parts.unshift({ text: fullPrompt.trim().replace(/\s+/g, ' ') });
 
 
+    const config: any = {
+      responseModalities: [Modality.IMAGE, Modality.TEXT],
+    };
+    if (typeof seed === 'number') {
+      config.seed = seed;
+    }
+
     const contentRequest = {
       model: 'gemini-2.5-flash-image',
       contents: { parts },
-      config: {
-        responseModalities: [Modality.IMAGE, Modality.TEXT],
-      },
+      config: config,
     };
 
     try {
@@ -376,8 +425,12 @@ export const geminiService = {
           }
         });
 
+        // Use the cleanJsonText helper to robustly parse the response
         const resultText = response.text;
-        const parsedResult = JSON.parse(resultText);
+        const cleanedText = cleanJsonText(resultText);
+        console.log("Cleaned JSON Text:", cleanedText);
+        
+        const parsedResult = JSON.parse(cleanedText);
 
         if (parsedResult.panel_details && Array.isArray(parsedResult.panel_details)) {
           const details: any[] = parsedResult.panel_details;

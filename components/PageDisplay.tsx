@@ -312,12 +312,12 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
         ) : (
           <div className={containerClasses}>
             {pages.map((page, index) => (
-              <div key={page.pageId} className="relative group bg-white border-4 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:scale-[1.01] transition-transform">
+              <div key={page.pageId} className="relative group bg-white border-4 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:scale-[1.01] hover:z-20 transition-transform">
                 <img src={page.imageUrl} alt={`页面 ${page.pageNumber}`} className="w-full h-auto border border-gray-300"/>
                 <div className="absolute top-0 left-0 bg-pink-600 border-b-2 border-r-2 border-black text-white text-lg font-black px-3 py-1 shadow-sm">
                   #{index + 1}
                 </div>
-                 <div className="absolute top-2 right-2 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                 <div className="absolute top-2 right-2 z-30 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         onClick={() => handleDownloadSinglePage(page)}
                         className="p-1.5 bg-green-500 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-green-400 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
