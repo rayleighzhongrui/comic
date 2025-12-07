@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import Modal from './Modal';
 
@@ -15,7 +16,7 @@ interface ExportModalProps {
 }
 
 const Checkbox: React.FC<{ id: string; label: string; checked: boolean; onChange: () => void }> = ({ id, label, checked, onChange }) => (
-    <div className="flex items-start">
+    <div className="flex items-start bg-white border-2 border-black p-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] cursor-pointer" onClick={onChange}>
         <div className="flex items-center h-5">
             <input
                 id={id}
@@ -23,11 +24,11 @@ const Checkbox: React.FC<{ id: string; label: string; checked: boolean; onChange
                 type="checkbox"
                 checked={checked}
                 onChange={onChange}
-                className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-500 rounded bg-gray-700"
+                className="focus:ring-pink-500 h-5 w-5 text-pink-600 border-2 border-black rounded-sm bg-gray-100"
             />
         </div>
         <div className="ml-3 text-sm">
-            <label htmlFor={id} className="font-medium text-gray-200">{label}</label>
+            <label htmlFor={id} className="font-bold text-black uppercase cursor-pointer">{label}</label>
         </div>
     </div>
 );
@@ -58,35 +59,35 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport }) 
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="导出项目选项" size="lg">
-      <div className="space-y-6 text-white">
+    <Modal isOpen={isOpen} onClose={onClose} title="EXPORT PROJECT" size="lg">
+      <div className="space-y-6">
         <div>
-          <h3 className="text-lg leading-6 font-medium text-white">选择要导出的数据</h3>
-          <p className="mt-1 text-sm text-gray-400">选择您想包含在 JSON 导出文件中的项目部分。</p>
+          <h3 className="text-lg font-bold text-black">SELECT DATA TO EXPORT</h3>
+          <p className="mt-1 text-sm text-gray-600">Choose which parts of your project to include in the JSON file.</p>
         </div>
         
-        <fieldset className="space-y-4 bg-gray-700 p-4 rounded-lg">
+        <fieldset className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Checkbox 
             id="characters"
-            label="角色"
+            label="CHARACTERS"
             checked={options.characters}
             onChange={() => handleCheckboxChange('characters')}
           />
           <Checkbox 
             id="assets"
-            label="特征 & 道具"
+            label="ASSETS & ITEMS"
             checked={options.assets}
             onChange={() => handleCheckboxChange('assets')}
           />
           <Checkbox 
             id="relationships"
-            label="关系"
+            label="RELATIONSHIPS"
             checked={options.relationships}
             onChange={() => handleCheckboxChange('relationships')}
           />
           <Checkbox 
             id="pages"
-            label="漫画页面 (图片和故事)"
+            label="PAGES & STORY"
             checked={options.pages}
             onChange={() => handleCheckboxChange('pages')}
           />
@@ -96,33 +97,33 @@ const ExportModal: React.FC<ExportModalProps> = ({ isOpen, onClose, onExport }) 
           <button 
             type="button" 
             onClick={handleSelectAll}
-            className="w-full flex justify-center py-2 px-4 border border-gray-500 text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-500 focus:outline-none"
+            className="flex-1 py-2 px-4 border-2 border-black text-sm font-bold text-black bg-gray-100 hover:bg-gray-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all"
           >
-            全选
+            SELECT ALL
           </button>
           <button 
             type="button" 
             onClick={handleDeselectAll}
-            className="w-full flex justify-center py-2 px-4 border border-gray-500 text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-500 focus:outline-none"
+            className="flex-1 py-2 px-4 border-2 border-black text-sm font-bold text-black bg-gray-100 hover:bg-gray-200 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px] transition-all"
           >
-            全部不选
+            DESELECT ALL
           </button>
         </div>
 
-        <div className="flex justify-end gap-4 pt-4 border-t border-gray-700">
+        <div className="flex justify-end gap-4 pt-6 border-t-2 border-black border-dashed">
           <button 
             type="button" 
             onClick={onClose}
-            className="py-2 px-4 border border-gray-500 text-sm font-medium rounded-md text-white bg-gray-600 hover:bg-gray-500 focus:outline-none"
+            className="py-3 px-6 border-2 border-black text-sm font-bold text-black bg-white hover:bg-gray-100 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all"
           >
-            取消
+            CANCEL
           </button>
           <button 
             type="button" 
             onClick={handleExportClick}
-            className="py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none"
+            className="py-3 px-6 border-2 border-black text-sm font-black text-white bg-indigo-600 hover:bg-indigo-500 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-[2px] active:translate-y-[2px] transition-all uppercase"
           >
-            导出
+            CONFIRM EXPORT
           </button>
         </div>
       </div>

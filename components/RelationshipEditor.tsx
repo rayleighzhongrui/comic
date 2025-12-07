@@ -82,15 +82,18 @@ const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
 
   return (
     <div>
-      <h3 className="text-lg font-semibold text-white mb-3 pt-4 border-t border-gray-700">关系编辑器</h3>
-      <form onSubmit={handleSubmit} className="space-y-3 bg-gray-700 p-4 rounded-lg">
-        <div className="flex items-center gap-2">
+       <h3 className="text-xl font-black italic bg-yellow-300 inline-block px-3 py-1 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -skew-x-6 mb-4 text-black uppercase">
+        RELATIONSHIPS / 关系
+      </h3>
+      
+      <form onSubmit={handleSubmit} className="space-y-3 bg-gray-50 border-2 border-black p-3 shadow-[4px_4px_0px_0px_rgba(200,200,200,1)]">
+        <div className="flex flex-col sm:flex-row items-center gap-2">
             <select
               value={entity1Id}
               onChange={(e) => setEntity1Id(e.target.value)}
-              className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm font-bold focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
             >
-              <option value="">选择实体1</option>
+              <option value="">实体 1</option>
               <optgroup label="角色">
                 {characters.map(c => <option key={c.characterId} value={c.characterId}>{c.name}</option>)}
               </optgroup>
@@ -98,13 +101,13 @@ const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
                 {assets.map(a => <option key={a.assetId} value={a.assetId}>{a.name}</option>)}
               </optgroup>
             </select>
-          <span className="text-gray-400 text-sm">与</span>
+          <span className="text-black font-black text-lg">X</span>
            <select
               value={entity2Id}
               onChange={(e) => setEntity2Id(e.target.value)}
-              className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+              className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm font-bold focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all"
             >
-              <option value="">选择实体2</option>
+              <option value="">实体 2</option>
               <optgroup label="角色">
                 {characters.map(c => <option key={c.characterId} value={c.characterId}>{c.name}</option>)}
               </optgroup>
@@ -117,15 +120,15 @@ const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="的关系是... (例如: 父亲, 宿敌, 拥有)"
-          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          placeholder="关系描述 (例如: 宿敌)"
+          className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm font-bold focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all placeholder-gray-400"
         />
         <div className="flex gap-2">
           {editingId && (
               <button
                 type="button"
                 onClick={handleCancelEdit}
-                className="w-full flex justify-center items-center bg-gray-500 hover:bg-gray-600 text-white font-semibold py-2 px-4 rounded-md transition-colors"
+                className="w-full flex justify-center items-center bg-gray-200 border-2 border-black text-black font-bold py-2 px-4 rounded-sm hover:bg-gray-300 transition-colors"
               >
                 取消
               </button>
@@ -133,9 +136,9 @@ const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
           <button
             type="submit"
             disabled={!entity1Id || !entity2Id || !description.trim() || entity1Id === entity2Id}
-            className="w-full flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex justify-center items-center bg-cyan-400 hover:bg-cyan-300 text-black font-black py-2 px-4 rounded-sm border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] disabled:bg-gray-300 disabled:border-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all uppercase"
           >
-            {editingId ? '保存更改' : '添加关系'}
+            {editingId ? 'SAVE' : 'ADD RELATION'}
           </button>
         </div>
       </form>
@@ -147,23 +150,28 @@ const RelationshipEditor: React.FC<RelationshipEditorProps> = ({
           if (!entity1 || !entity2) return null;
 
           return (
-            <div key={rel.id} className="flex items-center justify-between bg-gray-700 p-2 rounded-md text-sm">
-              <p className="text-gray-300">
-                <span className="font-semibold text-white">{entity1.name}</span>
-                <span className="text-indigo-400 mx-2">{rel.description}</span>
-                <span className="font-semibold text-white">{entity2.name}</span>
+            <div key={rel.id} className="flex items-center justify-between bg-white border-2 border-black p-2 shadow-sm">
+              <p className="text-black text-sm">
+                <span className="font-bold bg-yellow-100 px-1 border border-black">{entity1.name}</span>
+                <span className="text-pink-600 font-black mx-2 italic">{rel.description}</span>
+                <span className="font-bold bg-yellow-100 px-1 border border-black">{entity2.name}</span>
               </p>
               <div className="flex gap-2">
-                <button onClick={() => handleEdit(rel)} className="p-1 text-blue-400 hover:text-blue-300">
-                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
+                <button onClick={() => handleEdit(rel)} className="text-blue-600 hover:text-blue-800 font-bold px-1 hover:bg-blue-100 rounded">
+                   EDIT
                 </button>
-                <button onClick={() => onDeleteRelationship(rel.id)} className="p-1 text-red-400 hover:text-red-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
+                <button onClick={() => onDeleteRelationship(rel.id)} className="text-red-600 hover:text-red-800 font-bold px-1 hover:bg-red-100 rounded">
+                    X
                 </button>
               </div>
             </div>
           );
         })}
+        {relationships.length === 0 && (
+             <div className="text-gray-400 text-sm italic text-center p-2">
+                暂无关系。
+            </div>
+        )}
       </div>
     </div>
   );

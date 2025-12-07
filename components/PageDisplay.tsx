@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import type { Page, Project } from '../types';
 import { ComicFormat, PageMode } from '../types';
@@ -255,43 +256,43 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
   };
 
   const containerClasses = project.format === ComicFormat.WEBTOON
-    ? "space-y-1"
+    ? "space-y-4" // Use gap for webtoon pages
     : "grid grid-cols-1 md:grid-cols-1 lg:grid-cols-2 gap-4";
 
   return (
     <>
-    <div className="bg-gray-800 rounded-lg p-4 flex flex-col h-full">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-bold text-center">{project.projectName}</h2>
+    <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 flex flex-col h-full relative">
+      <div className="flex justify-between items-center mb-4 border-b-2 border-dashed border-gray-300 pb-2">
+        <h2 className="text-xl font-black italic uppercase text-black">PAGES / 页面预览</h2>
         <div className="relative" ref={dropdownRef}>
           <button 
             onClick={() => setIsDropdownOpen(prev => !prev)}
             disabled={isDownloading || pages.length === 0}
-            className="flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+            className="flex items-center justify-center px-4 py-2 border-2 border-black text-sm font-black uppercase text-black bg-cyan-400 hover:bg-cyan-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] disabled:bg-gray-300 disabled:shadow-none disabled:border-gray-500 disabled:cursor-not-allowed transition-all"
           >
             {isDownloading ? <LoadingSpinner size={20} className="mr-2"/> : (
               <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
               </svg>
             )}
-            下载
+            DOWNLOAD
             <svg className={`-mr-1 ml-2 h-5 w-5 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
               <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
             </svg>
           </button>
           {isDropdownOpen && (
-            <div className="origin-top-right absolute right-0 mt-2 w-56 rounded-md shadow-lg bg-gray-700 ring-1 ring-black ring-opacity-5 z-20">
+            <div className="origin-top-right absolute right-0 mt-2 w-56 bg-white border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] z-20">
               <div className="py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
                 <button
                   onClick={handlePrimaryDownload}
-                  className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  className="w-full text-left block px-4 py-2 text-sm text-black font-bold hover:bg-yellow-200"
                   role="menuitem"
                 >
                   {project.format === ComicFormat.WEBTOON ? '下载 Webtoon (ZIP)' : '下载为 PDF'}
                 </button>
                 <button
                   onClick={downloadAsZip}
-                  className="w-full text-left block px-4 py-2 text-sm text-gray-200 hover:bg-gray-600 hover:text-white"
+                  className="w-full text-left block px-4 py-2 text-sm text-black font-bold hover:bg-yellow-200"
                   role="menuitem"
                 >
                   下载所有图片 (ZIP)
@@ -301,23 +302,25 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
           )}
         </div>
       </div>
-      <div className="flex-grow overflow-y-auto">
+      <div className="flex-grow overflow-y-auto bg-gray-100 border-2 border-black border-dashed p-4">
         {pages.length === 0 ? (
-          <div className="flex items-center justify-center h-full text-gray-400">
-            <p>您的漫画将显示在这里。从创建第一页开始吧！</p>
+          <div className="flex flex-col items-center justify-center h-full text-gray-400">
+             <div className="text-6xl mb-4">📄</div>
+            <p className="font-bold italic">YOUR COMIC PAGES WILL APPEAR HERE.</p>
+            <p className="text-sm">START CREATING FROM THE RIGHT PANEL!</p>
           </div>
         ) : (
           <div className={containerClasses}>
             {pages.map((page, index) => (
-              <div key={page.pageId} className="relative group">
-                <img src={page.imageUrl} alt={`页面 ${page.pageNumber}`} className="w-full h-auto rounded-md shadow-lg"/>
-                <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs font-bold px-2 py-1 rounded-full">
-                  {index + 1}
+              <div key={page.pageId} className="relative group bg-white border-4 border-black p-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:scale-[1.01] transition-transform">
+                <img src={page.imageUrl} alt={`页面 ${page.pageNumber}`} className="w-full h-auto border border-gray-300"/>
+                <div className="absolute top-0 left-0 bg-pink-600 border-b-2 border-r-2 border-black text-white text-lg font-black px-3 py-1 shadow-sm">
+                  #{index + 1}
                 </div>
                  <div className="absolute top-2 right-2 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button
                         onClick={() => handleDownloadSinglePage(page)}
-                        className="p-1.5 bg-green-600 text-white rounded-full hover:bg-green-700 transition-colors"
+                        className="p-1.5 bg-green-500 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-green-400 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
                         aria-label="下载本页"
                         title="下载本页"
                     >
@@ -325,7 +328,7 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
                     </button>
                     <button
                         onClick={() => setFixingAspectRatioPage(page)}
-                        className="p-1.5 bg-yellow-600 text-white rounded-full hover:bg-yellow-700 transition-colors"
+                        className="p-1.5 bg-yellow-400 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-yellow-300 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
                         aria-label="调整比例"
                         title="调整页面比例"
                     >
@@ -333,7 +336,7 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
                     </button>
                     <button
                         onClick={() => onContinueFromPage(page)}
-                        className="p-1.5 bg-purple-600 text-white rounded-full hover:bg-purple-700 transition-colors"
+                        className="p-1.5 bg-purple-500 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-purple-400 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
                         aria-label="从本页续写"
                         title="AI 从本页续写"
                     >
@@ -341,21 +344,21 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
                     </button>
                     <button
                         onClick={() => setEditingPage(page)}
-                        className="p-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors"
+                        className="p-1.5 bg-blue-500 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-blue-400 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
                         aria-label="编辑页面"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                     </button>
                     <button
                         onClick={() => onDeletePage(page.pageId)}
-                        className="p-1.5 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                        className="p-1.5 bg-red-500 text-black border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:bg-red-400 hover:translate-y-[1px] hover:translate-x-[1px] hover:shadow-none transition-all"
                         aria-label="删除页面"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                     </button>
                 </div>
-                <div className="absolute inset-0 bg-black bg-opacity-80 p-4 pt-12 rounded-md opacity-0 group-hover:opacity-100 transition-opacity overflow-y-auto">
-                  <p className="text-sm text-white whitespace-pre-wrap">{page.userStoryText}</p>
+                <div className="absolute inset-0 bg-white bg-opacity-95 p-4 pt-12 opacity-0 group-hover:opacity-100 transition-opacity overflow-y-auto border-4 border-black m-1">
+                  <p className="text-sm text-black font-mono whitespace-pre-wrap">{page.userStoryText}</p>
                 </div>
               </div>
             ))}

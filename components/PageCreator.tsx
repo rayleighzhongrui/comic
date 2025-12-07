@@ -1,6 +1,4 @@
 
-
-
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Page, Character, Asset, Project, Scene, LayoutTemplate, Relationship } from '../types';
 import { CAMERA_SHOTS, LAYOUT_TEMPLATES } from '../constants';
@@ -226,7 +224,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       let scenesForGeneration = scenes;
 
       if (isContinuation) {
-        setLoadingText('AI 正在撰写下一个场景...');
+        setLoadingText('AI WRITING...');
         
         let continuationDetails: Array<{ description: string; cameraShot: string; characterIds: string[] }> = [];
         const panelCount = finalSelectedLayout.panelCount;
@@ -310,7 +308,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         return;
       }
       
-      setLoadingText('准备参考图中...');
+      setLoadingText('PREPARING REFS...');
       const appearingCharIds = new Set(scenesForGeneration.flatMap(s => s.characterIds || []));
       const appearingAssetIds = new Set(scenesForGeneration.flatMap(s => s.assetIds || []));
       const appearingCharacters = characters.filter(c => appearingCharIds.has(c.characterId));
@@ -321,7 +319,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
         allAppearingItems.map(item => toBase64FromUrl(item.referenceImageUrl))
       );
 
-      setLoadingText('AI 正在绘制您的漫画...');
+      setLoadingText('AI DRAWING...');
       const prompt = buildPrompt(finalSelectedLayout, scenesForGeneration, characters, assets, project, pageMode, colorMode);
       const fullStoryText = scenesForGeneration.map((s, i) => `分镜 ${i+1}: ${s.description}`).join('\n\n');
       
@@ -374,137 +372,139 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   const isStoryEmpty = scenes.every(s => !s.description.trim());
 
   return (
-    <div className="bg-gray-800 rounded-lg p-4 space-y-4">
-      <h3 className="text-lg font-semibold">创建新页面</h3>
+    <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 space-y-6">
+      <h3 className="text-xl font-black italic uppercase text-black border-b-2 border-black pb-2">CREATE NEW PAGE</h3>
 
-      <ContinuationSelectionGrid title="AI续写-主要角色" items={characters} selectedIds={selectedCharIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedCharIdsForContinuation, setSelectedCharIdsForContinuation)} />
-      <ContinuationSelectionGrid title="AI续写-主要特征" items={assets} selectedIds={selectedAssetIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedAssetIdsForContinuation, setSelectedAssetIdsForContinuation)} />
+      <div className="space-y-4">
+        <ContinuationSelectionGrid title="CONTEXT CHARACTERS (AI WRITING)" items={characters} selectedIds={selectedCharIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedCharIdsForContinuation, setSelectedCharIdsForContinuation)} />
+        <ContinuationSelectionGrid title="CONTEXT ASSETS (AI WRITING)" items={assets} selectedIds={selectedAssetIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedAssetIdsForContinuation, setSelectedAssetIdsForContinuation)} />
+      </div>
 
-       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">色彩模式</label>
-        <div className="flex gap-2 rounded-lg bg-gray-700 p-1">
+       <div className="flex flex-col gap-1">
+        <label className="block text-xs font-bold text-black uppercase">COLOR MODE</label>
+        <div className="flex rounded-sm border-2 border-black overflow-hidden shadow-sm">
           <button
             onClick={() => setColorMode('color')}
-            className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${colorMode === 'color' ? 'bg-indigo-600 text-white font-semibold' : 'hover:bg-gray-600 text-gray-300'}`}
+            className={`flex-1 py-1.5 text-sm font-bold transition-colors ${colorMode === 'color' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
           >
-            彩色
+            COLOR
           </button>
           <button
             onClick={() => setColorMode('bw')}
-            className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${colorMode === 'bw' ? 'bg-indigo-600 text-white font-semibold' : 'hover:bg-gray-600 text-gray-300'}`}
+            className={`flex-1 py-1.5 text-sm font-bold transition-colors border-l-2 border-black ${colorMode === 'bw' ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
           >
-            黑白
+            B & W
           </button>
         </div>
       </div>
 
       {project.format === ComicFormat.PAGE && (
-        <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">页面模式</label>
-          <div className="flex gap-2 rounded-lg bg-gray-700 p-1">
+        <div className="flex flex-col gap-1">
+          <label className="block text-xs font-bold text-black uppercase">PAGE FORMAT</label>
+          <div className="flex rounded-sm border-2 border-black overflow-hidden shadow-sm">
             <button
               onClick={() => setPageMode(PageMode.SINGLE)}
-              className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${pageMode === PageMode.SINGLE ? 'bg-indigo-600 text-white font-semibold' : 'hover:bg-gray-600 text-gray-300'}`}
+              className={`flex-1 py-1.5 text-sm font-bold transition-colors ${pageMode === PageMode.SINGLE ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'}`}
             >
-              单页
+              SINGLE PAGE
             </button>
             <button
               onClick={() => setPageMode(PageMode.SPREAD)}
               disabled={pages.length === 0}
-              className={`flex-1 py-1.5 text-sm rounded-md transition-colors ${pageMode === PageMode.SPREAD ? 'bg-indigo-600 text-white font-semibold' : 'hover:bg-gray-600 text-gray-300'} disabled:opacity-50 disabled:cursor-not-allowed`}
+              className={`flex-1 py-1.5 text-sm font-bold transition-colors border-l-2 border-black ${pageMode === PageMode.SPREAD ? 'bg-black text-white' : 'bg-white text-black hover:bg-gray-100'} disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed`}
               title={pages.length === 0 ? "从第二页开始才能创建跨页" : "创建横版跨页大图"}
             >
-              跨页
+              SPREAD
             </button>
           </div>
         </div>
       )}
 
       <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">选择构图</label>
+        <label className="block text-xs font-bold text-black uppercase mb-2">LAYOUT TEMPLATE</label>
         <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2">
           {LAYOUT_TEMPLATES.map(template => (
             <div
               key={template.id}
               onClick={() => setSelectedLayout(template)}
-              className={`cursor-pointer p-2 rounded-md transition-all border-2 ${selectedLayout.id === template.id ? 'border-indigo-500 bg-indigo-900' : 'border-gray-600 bg-gray-700 hover:bg-gray-600'}`}
+              className={`cursor-pointer p-1 rounded-sm transition-all border-2 ${selectedLayout.id === template.id ? 'border-pink-600 bg-yellow-100 shadow-[2px_2px_0px_0px_rgba(236,72,153,1)] scale-[1.02]' : 'border-gray-400 bg-white hover:border-black'}`}
               title={template.name}
             >
               {template.id === 'custom' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }} className="h-12 w-full">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }} className="h-10 w-full p-0.5">
                   {customLayoutConfig.map((cols, rowIndex) => (
-                      <div key={rowIndex} style={{ display: 'flex', flex: 1, gap: '4px' }}>
+                      <div key={rowIndex} style={{ display: 'flex', flex: 1, gap: '2px' }}>
                           {Array.from({ length: cols }).map((_, colIndex) => (
-                              <div key={colIndex} style={{ flex: 1 }} className="bg-gray-500 rounded-sm"></div>
+                              <div key={colIndex} style={{ flex: 1 }} className="bg-gray-300 border border-gray-400"></div>
                           ))}
                       </div>
                   ))}
                 </div>
               ) : (
-                <div style={template.style} className="h-12 w-full">
+                <div style={{...template.style, gap: '2px', border: 'none', padding: 0}} className="h-10 w-full p-0.5">
                   {template.panelStyles.map((style, i) => (
-                    <div key={i} style={style} className="bg-gray-500 rounded-sm"></div>
+                    <div key={i} style={{...style, background: '#e5e7eb', border: '1px solid #9ca3af'}} className=""></div>
                   ))}
                 </div>
               )}
-              <p className="text-xs text-center mt-1 text-white truncate">{template.name}</p>
+              <p className={`text-[10px] text-center mt-1 truncate font-bold ${selectedLayout.id === template.id ? 'text-pink-600' : 'text-gray-600'}`}>{template.name}</p>
             </div>
           ))}
         </div>
       </div>
       
       {selectedLayout.id === 'custom' && (
-        <div className="p-4 bg-gray-700 rounded-lg mt-2 space-y-3">
-            <h4 className="text-md font-semibold text-white">自定义构图</h4>
+        <div className="p-3 bg-yellow-50 border-2 border-black rounded-sm mt-2 space-y-3 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+            <h4 className="text-sm font-black text-black">CUSTOMIZE LAYOUT</h4>
             {customLayoutConfig.map((cols, rowIndex) => (
-                <div key={rowIndex} className="flex items-center gap-3">
-                    <span className="text-sm text-gray-300 font-medium">第 {rowIndex + 1} 行:</span>
-                    <div className="flex items-center gap-2">
+                <div key={rowIndex} className="flex items-center gap-2">
+                    <span className="text-xs text-black font-bold whitespace-nowrap">ROW {rowIndex + 1}:</span>
+                    <div className="flex items-center gap-1">
                         {[1, 2, 3].map(colCount => (
                             <button
                                 key={colCount}
                                 onClick={() => handleColsChange(rowIndex, colCount)}
-                                className={`px-3 py-1 text-xs rounded-md transition-colors ${cols === colCount ? 'bg-indigo-600 text-white' : 'bg-gray-600 hover:bg-gray-500 text-gray-200'}`}
+                                className={`px-2 py-0.5 text-xs font-bold border-2 rounded-sm transition-colors ${cols === colCount ? 'bg-black text-white border-black' : 'bg-white text-black border-black hover:bg-gray-200'}`}
                             >
-                                {colCount} 分镜
+                                {colCount}
                             </button>
                         ))}
                     </div>
                 </div>
             ))}
-            <div className="flex gap-2 pt-2 border-t border-gray-600">
-                <button onClick={handleAddRow} className="text-sm px-3 py-1.5 bg-green-600 hover:bg-green-700 rounded-md font-semibold">添加行</button>
-                <button onClick={handleRemoveRow} disabled={customLayoutConfig.length <= 1} className="text-sm px-3 py-1.5 bg-red-600 hover:bg-red-700 rounded-md font-semibold disabled:opacity-50">删除最后一行</button>
+            <div className="flex gap-2 pt-2 border-t border-black">
+                <button onClick={handleAddRow} className="text-xs px-2 py-1 bg-green-500 border-2 border-black text-black font-bold rounded-sm hover:bg-green-400 shadow-sm">+ ROW</button>
+                <button onClick={handleRemoveRow} disabled={customLayoutConfig.length <= 1} className="text-xs px-2 py-1 bg-red-500 border-2 border-black text-white font-bold rounded-sm hover:bg-red-400 shadow-sm disabled:opacity-50">- ROW</button>
             </div>
         </div>
       )}
 
       <div>
-         <label className="block text-sm font-medium text-gray-300 mb-2">填充分镜内容</label>
+         <label className="block text-xs font-bold text-black uppercase mb-2">PANEL DETAILS</label>
          {(() => {
             const renderSceneInput = (scene: Scene, index: number) => {
               if (!scene) return null;
               return (
-                  <div key={scene.sceneId} className="p-3 bg-gray-700 rounded-lg space-y-2">
-                      <label className="block text-xs font-medium text-gray-400">分镜 {index + 1}</label>
+                  <div key={scene.sceneId} className="p-2 bg-white border-2 border-black rounded-sm space-y-2 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] mb-4 relative">
+                      <div className="absolute -top-3 left-2 bg-black text-white text-xs font-bold px-2 border border-black transform -skew-x-12">PANEL {index + 1}</div>
                       <textarea
                           rows={3}
-                          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          className="w-full bg-gray-50 text-black border-2 border-black rounded-sm px-3 py-2 text-sm focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all placeholder-gray-400 mt-2"
                           value={scene.description}
                           onChange={e => handleSceneChange(scene.sceneId, 'description', e.target.value)}
-                          placeholder={`例如, '主角A在废墟中与反派X对峙...'`}
+                          placeholder={`例如: '主角A在废墟中与反派X对峙...'`}
                       />
                       <select
                           value={scene.cameraShot}
                           onChange={e => handleSceneChange(scene.sceneId, 'cameraShot', e.target.value)}
-                          className="w-full bg-gray-600 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                          className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm focus:outline-none focus:bg-yellow-50 font-bold"
                       >
                           {CAMERA_SHOTS.map(shot => <option key={shot} value={shot}>{shot}</option>)}
                       </select>
-                      {characters.length > 0 && (
-                          <div className="pt-2">
-                              <label className="block text-xs font-medium text-gray-400 mb-1">出场角色</label>
-                              <div className="flex flex-wrap gap-2">
+                      {(characters.length > 0 || assets.length > 0) && (
+                          <div className="pt-1">
+                              <label className="block text-[10px] font-bold text-gray-500 mb-1 uppercase">INCLUDE IN PANEL</label>
+                              <div className="flex flex-wrap gap-1">
                                   {characters.map(char => (
                                       <img
                                           key={char.characterId}
@@ -512,16 +512,9 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
                                           alt={char.name}
                                           title={char.name}
                                           onClick={() => handleSceneItemToggle(scene.sceneId, char.characterId, 'character')}
-                                          className={`w-10 h-10 object-cover rounded-md cursor-pointer border-2 transition-all ${scene.characterIds?.includes(char.characterId) ? 'border-indigo-500' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                                          className={`w-8 h-8 object-cover rounded-sm cursor-pointer border-2 transition-all ${scene.characterIds?.includes(char.characterId) ? 'border-pink-500 scale-110 shadow-sm' : 'border-gray-300 opacity-60 hover:opacity-100'}`}
                                       />
                                   ))}
-                              </div>
-                          </div>
-                      )}
-                      {assets.length > 0 && (
-                          <div className="pt-2">
-                              <label className="block text-xs font-medium text-gray-400 mb-1">出场道具 & 特征</label>
-                              <div className="flex flex-wrap gap-2">
                                   {assets.map(asset => (
                                       <img
                                           key={asset.assetId}
@@ -529,7 +522,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
                                           alt={asset.name}
                                           title={asset.name}
                                           onClick={() => handleSceneItemToggle(scene.sceneId, asset.assetId, 'asset')}
-                                          className={`w-10 h-10 object-cover rounded-md cursor-pointer border-2 transition-all ${scene.assetIds?.includes(asset.assetId) ? 'border-indigo-500' : 'border-transparent opacity-50 hover:opacity-100'}`}
+                                          className={`w-8 h-8 object-cover rounded-sm cursor-pointer border-2 transition-all ${scene.assetIds?.includes(asset.assetId) ? 'border-blue-500 scale-110 shadow-sm' : 'border-gray-300 opacity-60 hover:opacity-100'}`}
                                       />
                                   ))}
                               </div>
@@ -557,9 +550,10 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
               );
             } else {
               return (
-                <div style={finalSelectedLayout.style} className="w-full">
+                <div style={{...finalSelectedLayout.style, border: 'none', padding: 0, gap: '8px'}} className="w-full block">
+                   {/* We override the grid display here to just show a list of inputs because visual layout preview is above */}
                   {scenes.map((scene, index) => (
-                    <div key={scene.sceneId} style={finalSelectedLayout.panelStyles[index]}>
+                    <div key={scene.sceneId} style={{}}>
                       {renderSceneInput(scene, index)}
                     </div>
                   ))}
@@ -569,42 +563,44 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
           })()}
       </div>
       
-      <div className="space-y-3 pt-3">
+      <div className="space-y-4 pt-4 border-t-4 border-black border-dashed">
         <div>
-            <label htmlFor="page-outline" className="block text-sm font-medium text-gray-300 mb-1">页面大纲 (用于 AI 续写)</label>
+            <label htmlFor="page-outline" className="block text-xs font-bold text-black uppercase mb-1">PAGE OUTLINE (AI GUIDE)</label>
             <textarea
                 id="page-outline"
                 rows={2}
                 value={pageOutline}
                 onChange={e => setPageOutline(e.target.value)}
-                className="w-full bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all placeholder-gray-400"
                 placeholder="为 AI 续写提供一个大致方向，例如：'主角遇到了一个神秘的老人，老人给了他一张地图。'"
             />
         </div>
-        <div className="flex flex-col sm:flex-row gap-3">
+        <div className="flex flex-col gap-3">
           <button
             onClick={() => handleGenerate(false)}
             disabled={isLoading || isStoryEmpty}
-            className="flex-1 w-full flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex justify-center items-center bg-pink-600 hover:bg-pink-500 text-white font-black py-4 px-4 text-lg border-4 border-black shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[3px] hover:translate-y-[3px] disabled:bg-gray-400 disabled:border-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all uppercase italic transform -skew-x-2"
           >
-            {isLoading && !loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2"/> {loadingText || '生成中...'}</> : '生成页面'}
+            {isLoading && !loadingText.includes('撰写') ? <><LoadingSpinner size={24} className="mr-2 text-white"/> {loadingText || 'GENERATING...'}</> : 'GENERATE PAGE / 生成页面'}
           </button>
           <button
             onClick={() => handleGenerate(true)}
             disabled={isLoading || pages.length === 0}
-            className="flex-1 w-full flex justify-center items-center bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-colors"
+            className="w-full flex justify-center items-center bg-cyan-400 hover:bg-cyan-300 text-black font-black py-3 px-4 text-base border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] disabled:bg-gray-300 disabled:border-gray-500 disabled:shadow-none disabled:cursor-not-allowed transition-all uppercase"
           >
-            {isLoading && loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2"/> {loadingText}</> : 'AI 续写'}
+            {isLoading && loadingText.includes('撰写') ? <><LoadingSpinner size={20} className="mr-2 text-black"/> {loadingText}</> : 'AI AUTO-WRITE / AI 续写'}
           </button>
         </div>
       </div>
       
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="选择您最喜欢的画稿">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="SELECT VARIATION">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-2">
           {generatedImages.map((img, idx) => (
-            <div key={idx} className="cursor-pointer group" onClick={() => handleSelectImage(img)}>
-              <img src={img} alt={`生成面板 ${idx+1}`} className="w-full h-auto rounded-lg border-2 border-transparent group-hover:border-indigo-500 transition-all"/>
-              <p className="text-center text-sm mt-2 text-gray-300">选项 {idx+1}</p>
+            <div key={idx} className="cursor-pointer group relative" onClick={() => handleSelectImage(img)}>
+              <div className="bg-white p-2 border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] group-hover:shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] group-hover:translate-x-[4px] group-hover:translate-y-[4px] transition-all">
+                <img src={img} alt={`生成面板 ${idx+1}`} className="w-full h-auto border border-black"/>
+                <p className="text-center font-black text-lg mt-2 text-black uppercase">OPTION {idx+1}</p>
+              </div>
             </div>
           ))}
         </div>
@@ -636,7 +632,7 @@ const ContinuationSelectionGrid: React.FC<ContinuationSelectionGridProps> = ({ t
   if(items.length === 0) return null;
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-300 mb-1">{title}</label>
+      <label className="block text-xs font-bold text-black uppercase mb-1">{title}</label>
       <div className="flex flex-wrap gap-2">
         {items.map(item => {
           const id = 'characterId' in item ? item.characterId : item.assetId;
@@ -645,10 +641,9 @@ const ContinuationSelectionGrid: React.FC<ContinuationSelectionGridProps> = ({ t
             <div
               key={id}
               onClick={() => onToggle(id)}
-              className={`cursor-pointer p-1 rounded-md transition-all ${isSelected ? 'bg-teal-500' : 'bg-gray-700 hover:bg-gray-600'}`}
+              className={`cursor-pointer p-1 rounded-sm border-2 transition-all ${isSelected ? 'bg-cyan-200 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] -translate-y-0.5' : 'bg-white border-gray-300 hover:border-black'}`}
             >
-              <img src={item.referenceImageUrl} alt={item.name} className="w-12 h-12 object-cover rounded" />
-              <p className="text-xs text-center mt-1 truncate w-12 text-white">{item.name}</p>
+              <img src={item.referenceImageUrl} alt={item.name} className="w-10 h-10 object-cover border border-black" />
             </div>
           );
         })}

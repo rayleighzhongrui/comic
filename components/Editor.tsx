@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import type { Project, Character, Asset, Page, Relationship } from '../types';
 import AssetManager from './AssetManager';
@@ -98,28 +97,43 @@ const Editor: React.FC<EditorProps> = (props) => {
 
   return (
     <>
-      <div className="min-h-screen bg-gray-900 text-white p-4">
-        <header className="mb-4 flex justify-between items-center">
+      <div className="min-h-screen bg-yellow-400 p-4 font-sans relative overflow-hidden">
+        {/* Background Patterns */}
+        <div 
+            className="absolute inset-0 opacity-10 pointer-events-none"
+            style={{
+                backgroundImage: 'radial-gradient(#000 20%, transparent 20%)',
+                backgroundSize: '20px 20px'
+            }}
+        ></div>
+        <div className="absolute inset-0 pointer-events-none opacity-5 bg-[conic-gradient(from_0deg_at_50%_50%,white_0deg,transparent_2deg,transparent_5deg,white_7deg)]"></div>
+
+        <header className="relative z-10 mb-6 flex justify-between items-center bg-white border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] p-4 rounded-sm">
           <div>
-            <h1 className="text-2xl font-bold">AI 漫画生成器</h1>
-            <p className="text-gray-400">项目: {project.projectName}</p>
+            <h1 className="text-3xl font-black italic tracking-tighter text-black uppercase transform -skew-x-6">
+                AI MANGA CREATOR
+            </h1>
+            <p className="text-black font-bold text-sm bg-yellow-300 inline-block px-2 border border-black mt-1">
+                PROJECT: {project.projectName}
+            </p>
           </div>
           <button
             onClick={() => setIsExportModalOpen(true)}
-            className="flex items-center gap-2 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-md transition-colors"
+            className="group flex items-center gap-2 px-4 py-2 bg-cyan-400 hover:bg-cyan-300 border-2 border-black text-black font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
             title="将整个项目导出为 .json 文件"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
               <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2V4z" />
               <path fillRule="evenodd" d="M3 8h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 6a1 1 0 100 2h4a1 1 0 100-2H8z" clipRule="evenodd" />
             </svg>
-            导出项目
+            EXPORT / 导出
           </button>
         </header>
-        <main className="grid grid-cols-1 lg:grid-cols-12 gap-4 h-[calc(100vh-80px)]">
+
+        <main className="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-110px)]">
           
           {/* Left Panel: Asset Management */}
-          <div className="lg:col-span-3 h-full overflow-y-auto">
+          <div className="lg:col-span-3 h-full overflow-y-auto pr-1">
             <AssetManager
               project={project}
               characters={characters}
@@ -149,7 +163,7 @@ const Editor: React.FC<EditorProps> = (props) => {
           </div>
           
           {/* Right Panel: Page Creation */}
-          <div id="page-creator-panel" className="lg:col-span-4 h-full overflow-y-auto">
+          <div id="page-creator-panel" className="lg:col-span-4 h-full overflow-y-auto pl-1">
             <PageCreator
               project={project}
               characters={characters}

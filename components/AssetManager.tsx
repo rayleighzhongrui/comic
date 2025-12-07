@@ -1,5 +1,4 @@
 
-
 import React, { useState } from 'react';
 import type { Character, Asset, Project, Relationship } from '../types';
 import { geminiService } from '../services/geminiService';
@@ -56,8 +55,6 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
         throw new Error("无法创建或上传图片。");
       }
 
-      // --- Start of fix ---
-      // Use a more explicit way to create the new item to ensure the ID is set correctly.
       let newItem;
       if (type === 'character') {
           newItem = {
@@ -75,7 +72,6 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
           };
       }
       onAddItem(newItem as T);
-      // --- End of fix ---
       
       setName('');
       setDescription('');
@@ -95,17 +91,21 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
   const typeName = buttonTextMapping[type];
 
   return (
-    <div>
-      <h3 className="text-lg font-semibold text-white mb-3">{title}</h3>
+    <div className="mb-8">
+      <h3 className="text-xl font-black italic bg-yellow-300 inline-block px-3 py-1 border-2 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform -skew-x-6 mb-4 text-black uppercase">
+        {title}
+      </h3>
+      
+      {/* List */}
       <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 mb-6">
         {items.map(item => {
             const itemId = 'characterId' in item ? item.characterId : item.assetId;
             return (
-              <div key={itemId} className="group relative" title={item.name}>
-                <div onClick={() => onEditItem(item)} className="cursor-pointer">
-                    <img src={item.referenceImageUrl} alt={item.name} className="w-full h-auto aspect-square object-cover rounded-md" />
-                    <div className="absolute inset-0 bg-black bg-opacity-60 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
-                    <span className="text-white text-xs text-center p-1">{item.name}</span>
+              <div key={itemId} className="group relative bg-white border-2 border-black shadow-[3px_3px_0px_0px_rgba(0,0,0,1)] hover:shadow-[1px_1px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all cursor-pointer" title={item.name}>
+                <div onClick={() => onEditItem(item)} className="p-1">
+                    <img src={item.referenceImageUrl} alt={item.name} className="w-full h-auto aspect-square object-cover border border-black" />
+                    <div className="mt-1 text-center bg-black">
+                        <span className="text-white text-xs font-bold truncate block px-1 py-0.5">{item.name}</span>
                     </div>
                 </div>
                  <button
@@ -115,24 +115,31 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
                             onDeleteItem(itemId);
                         }
                     }}
-                    className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-1 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-700 transition-all transform scale-75 group-hover:scale-100 z-10"
+                    className="absolute -top-2 -right-2 bg-red-600 border-2 border-black text-white w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 hover:bg-red-700 transition-all z-10 shadow-sm"
                     aria-label={`删除 ${item.name}`}
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" />
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
                     </svg>
                 </button>
             </div>
             );
         })}
+        {items.length === 0 && (
+            <div className="col-span-3 text-gray-400 text-sm italic border-2 border-dashed border-gray-300 p-2 text-center bg-gray-50">
+                暂无{typeName}。请添加。
+            </div>
+        )}
       </div>
-      <form onSubmit={handleAddItem} className="space-y-3">
+
+      {/* Add Form */}
+      <form onSubmit={handleAddItem} className="space-y-3 bg-gray-50 border-2 border-black p-3 shadow-[4px_4px_0px_0px_rgba(200,200,200,1)]">
         <input
           type="text"
           value={name}
           onChange={e => setName(e.target.value)}
           placeholder={type === 'character' ? "角色名称" : "特征名称"}
-          className="w-full bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm font-bold focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all placeholder-gray-400"
           disabled={isLoading}
         />
         <textarea
@@ -140,34 +147,34 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
           onChange={e => setDescription(e.target.value)}
           placeholder={placeholder}
           rows={3}
-          className="w-full bg-gray-700 text-white rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+          className="w-full bg-white text-black border-2 border-black rounded-sm px-3 py-2 text-sm focus:outline-none focus:bg-yellow-50 focus:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] transition-all placeholder-gray-400"
           disabled={isLoading}
         />
          <div className="mt-1">
-          <label className="text-xs font-medium text-gray-400">添加图片 (可选)</label>
+          <label className="text-xs font-bold text-black uppercase">REF IMAGE (OPTIONAL)</label>
           <div className="mt-1 flex items-center gap-4">
             {uploadedImage ? (
-              <div className="relative">
-                <img src={uploadedImage} alt="预览" className="w-16 h-16 object-cover rounded-md" />
+              <div className="relative border-2 border-black">
+                <img src={uploadedImage} alt="预览" className="w-16 h-16 object-cover" />
                 <button
                   type="button"
                   onClick={() => setUploadedImage(null)}
-                  className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full p-0.5 flex items-center justify-center hover:bg-red-700"
+                  className="absolute -top-2 -right-2 bg-red-600 border-2 border-black text-white w-5 h-5 flex items-center justify-center hover:bg-red-700"
                   aria-label="移除图片"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" /></svg>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
                 </button>
               </div>
             ) : (
-              <div className="w-16 h-16 bg-gray-700 rounded-md flex items-center justify-center text-gray-500">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+              <div className="w-16 h-16 bg-gray-100 border-2 border-dashed border-gray-400 flex items-center justify-center text-gray-400">
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
               </div>
             )}
             <div>
-                <label htmlFor={`file-upload-${type}`} className="cursor-pointer bg-gray-600 hover:bg-gray-500 text-white font-semibold py-2 px-3 rounded-md text-sm transition-colors">
-                    上传
+                <label htmlFor={`file-upload-${type}`} className="cursor-pointer bg-gray-200 hover:bg-gray-300 border-2 border-black text-black font-bold py-1 px-3 text-xs transition-colors shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] active:translate-x-[1px] active:translate-y-[1px] active:shadow-none">
+                    UPLOAD / 上传
                 </label>
-                <p className="text-xs text-gray-400 mt-1">或者让 AI 生成。</p>
+                <p className="text-xs text-gray-500 mt-1">OR AI GENERATE</p>
             </div>
             <input id={`file-upload-${type}`} name={`file-upload-${type}`} type="file" className="sr-only" onChange={handleImageUpload} accept="image/*" disabled={isLoading}/>
           </div>
@@ -175,9 +182,9 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
         <button
           type="submit"
           disabled={isLoading || !name || !description}
-          className="w-full flex justify-center items-center bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 text-base rounded-md disabled:bg-gray-500 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:scale-[1.02]"
+          className="w-full flex justify-center items-center bg-pink-600 hover:bg-pink-500 text-white font-black py-3 px-4 text-base border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] disabled:bg-gray-400 disabled:border-gray-600 disabled:shadow-none disabled:cursor-not-allowed transition-all uppercase italic"
         >
-          {isLoading ? <LoadingSpinner size={20} /> : `添加新${typeName}`}
+          {isLoading ? <LoadingSpinner size={20} /> : `ADD NEW ${type === 'character' ? 'CHAR' : 'ITEM'} / 添加`}
         </button>
       </form>
     </div>
@@ -229,27 +236,29 @@ const AssetManager: React.FC<AssetManagerProps> = ({
 
   return (
     <>
-      <div className="bg-gray-800 rounded-lg p-4 space-y-6">
+      <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 h-full overflow-y-auto">
         <AssetSection<Character>
-          title="角色"
+          title="CHARACTERS / 角色"
           items={characters}
           onAddItem={onAddCharacter}
           onEditItem={setEditingItem}
           onDeleteItem={onDeleteCharacter}
-          placeholder="例如, '勇敢的骑士，银色头发，左眼有一道疤痕'"
+          placeholder="例如: '勇敢的骑士，银色头发，左眼有一道疤痕'"
           project={project}
           type="character"
         />
+        <div className="my-6 border-t-4 border-black border-dashed opacity-50"></div>
         <AssetSection<Asset>
-          title="特征 & 道具"
+          title="ASSETS / 道具"
           items={assets}
           onAddItem={onAddAsset}
           onEditItem={setEditingItem}
           onDeleteItem={onDeleteAsset}
-          placeholder="例如, '闪耀着蓝色能量的传奇之剑'"
+          placeholder="例如: '闪耀着蓝色能量的传奇之剑'"
           project={project}
           type="asset"
         />
+        <div className="my-6 border-t-4 border-black border-dashed opacity-50"></div>
         <RelationshipEditor
           characters={characters}
           assets={assets}
