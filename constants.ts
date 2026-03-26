@@ -3,10 +3,16 @@
 import { ComicFormat, DrawingStyle, LayoutTemplate } from './types';
 
 export const DRAWING_STYLES = [
-  { id: DrawingStyle.JAPANESE_SHONEN, name: '日式少年漫画' },
+  { id: DrawingStyle.JAPANESE_SHONEN, name: '日式少年漫画 (标准)' },
   { id: DrawingStyle.AMERICAN_REALISTIC, name: '美式写实漫画' },
+  { id: DrawingStyle.OBATA_STYLE, name: '写实暗黑 (类似小畑健)' },
+  { id: DrawingStyle.ODA_STYLE, name: '热血夸张 (类似尾田荣一郎)' },
+  { id: DrawingStyle.CLAMP_STYLE, name: '华丽少女 (类似CLAMP)' },
+  { id: DrawingStyle.SHINKAI_STYLE, name: '唯美光影 (类似新海诚)' },
+  { id: DrawingStyle.JUNJI_ITO_STYLE, name: '惊悚线描 (类似伊藤润二)' },
   { id: DrawingStyle.CHIBI, name: 'Q版 / 赤壁风格' },
   { id: DrawingStyle.INK_WASH, name: '水墨画风格' },
+  { id: DrawingStyle.CUSTOM, name: '✨ 自定义 / 从图片提取风格' },
 ];
 
 export const COMIC_FORMATS = [
@@ -100,7 +106,7 @@ export const LAYOUT_TEMPLATES: LayoutTemplate[] = [
     id: 'hero-left',
     name: '聚焦主体',
     panelCount: 3,
-    description: '左侧垂直的大分镜用来突出一个主要角色或关键物体，右侧的小分镜则展示与之相关的反应、对话或细节。',
+    description: '左侧垂直的大分镜用来突出一个主要角色或关键物体，右侧的小分镜则展示细节、反应或对话。',
     style: { ...baseLayoutStyle, display: 'grid', gridTemplateColumns: '2fr 1fr', gridTemplateRows: '1fr 1fr', gap: '6px' },
     panelStyles: [{ ...heroPanelStyle, gridRow: 'span 2' }, basePanelStyle, basePanelStyle],
   },

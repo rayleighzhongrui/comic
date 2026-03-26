@@ -1,10 +1,12 @@
 
+
 import React, { useState } from 'react';
 import type { Project, Character, Asset, Page, Relationship } from '../types';
 import AssetManager from './AssetManager';
 import PageDisplay from './PageDisplay';
 import PageCreator from './PageCreator';
 import ExportModal, { type ExportOptions } from './ExportModal';
+import ProjectSettingsModal from './ProjectSettingsModal';
 
 interface EditorProps {
   project: Project;
@@ -24,6 +26,7 @@ interface EditorProps {
   onAddRelationship: (relationship: Relationship) => void;
   onUpdateRelationship: (relationship: Relationship) => void;
   onDeleteRelationship: (relationshipId: string) => void;
+  onUpdateProject: (project: Project) => void;
 }
 
 const Editor: React.FC<EditorProps> = (props) => {
@@ -45,10 +48,12 @@ const Editor: React.FC<EditorProps> = (props) => {
     onAddRelationship,
     onUpdateRelationship,
     onDeleteRelationship,
+    onUpdateProject
   } = props;
 
   const [continuationContext, setContinuationContext] = useState<Page | null>(null);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
 
   const handleContinueFromPage = (page: Page) => {
     setContinuationContext(page);
@@ -66,7 +71,7 @@ const Editor: React.FC<EditorProps> = (props) => {
     // 1. Conditionally build the project data object
     const projectData: { [key: string]: any } = {
       project, // Always include project settings
-      version: "1.1.0", // Bump version for selective export feature
+      version: "1.2.0", // Bump version for custom styles
     };
 
     if (options.characters) projectData.characters = characters;
@@ -117,17 +122,29 @@ const Editor: React.FC<EditorProps> = (props) => {
                 PROJECT: {project.projectName}
             </p>
           </div>
-          <button
-            onClick={() => setIsExportModalOpen(true)}
-            className="group flex items-center gap-2 px-4 py-2 bg-cyan-400 hover:bg-cyan-300 border-2 border-black text-black font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
-            title="将整个项目导出为 .json 文件"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2V4z" />
-              <path fillRule="evenodd" d="M3 8h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 6a1 1 0 100 2h4a1 1 0 100-2H8z" clipRule="evenodd" />
-            </svg>
-            EXPORT / 导出
-          </button>
+          <div className="flex gap-3">
+             <button
+                onClick={() => setIsSettingsModalOpen(true)}
+                className="group flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 border-2 border-black text-black font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                title="修改项目设置和画风"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
+                </svg>
+                SETTINGS / 设置
+            </button>
+            <button
+                onClick={() => setIsExportModalOpen(true)}
+                className="group flex items-center gap-2 px-4 py-2 bg-cyan-400 hover:bg-cyan-300 border-2 border-black text-black font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                title="将整个项目导出为 .json 文件"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M5 4a2 2 0 012-2h6a2 2 0 012 2v2a2 2 0 01-2 2H7a2 2 0 01-2-2V4z" />
+                <path fillRule="evenodd" d="M3 8h14v10a2 2 0 01-2 2H5a2 2 0 01-2-2V8zm5 6a1 1 0 100 2h4a1 1 0 100-2H8z" clipRule="evenodd" />
+                </svg>
+                EXPORT / 导出
+            </button>
+          </div>
         </header>
 
         <main className="flex-1 lg:min-h-0 relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -185,6 +202,12 @@ const Editor: React.FC<EditorProps> = (props) => {
         isOpen={isExportModalOpen}
         onClose={() => setIsExportModalOpen(false)}
         onExport={handleConfirmExport}
+      />
+      <ProjectSettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        project={project}
+        onUpdateProject={onUpdateProject}
       />
     </>
   );

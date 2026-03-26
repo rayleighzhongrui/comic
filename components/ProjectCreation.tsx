@@ -1,7 +1,12 @@
+
+
 import React, { useState, useRef } from 'react';
 // Fix: 'DrawingStyle' is an enum used as a value, so it must be a regular import, not a type-only import.
 import { type Project, type ComicFormat, DrawingStyle } from '../types';
 import { DRAWING_STYLES, COMIC_FORMATS } from '../constants';
+import { geminiService } from '../services/geminiService';
+import LoadingSpinner from './LoadingSpinner';
+import { toBase64FromUrl } from '../utils';
 
 interface ProjectCreationProps {
   onCreateProject: (project: Project) => void;
@@ -14,7 +19,56 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
   const [projectName, setProjectName] = useState('');
   const [format, setFormat] = useState<ComicFormat>(COMIC_FORMATS[0].id);
   const [style, setStyle] = useState<DrawingStyle>(DRAWING_STYLES[0].id);
+  // Separate state for the effective prompt text.
+  // When a preset is selected, this updates automatically.
+  // When CUSTOM is selected, user edits this manually or via AI extraction.
+  const [stylePrompt, setStylePrompt] = useState<string>(DRAWING_STYLES[0].id);
+  
+  const [isExtractingStyle, setIsExtractingStyle] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const styleImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleStyleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newStyle = e.target.value as DrawingStyle;
+    setStyle(newStyle);
+    
+    // If selecting a preset (not custom), update the prompt text automatically
+    if (newStyle !== DrawingStyle.CUSTOM) {
+        const selectedStyleObj = DRAWING_STYLES.find(s => s.id === newStyle);
+        if (selectedStyleObj) {
+            setStylePrompt(selectedStyleObj.id);
+        }
+    } else {
+        // If switching TO custom, clear it or keep previous if needed? 
+        // Let's clear it to encourage custom input or extraction.
+        setStylePrompt('');
+    }
+  };
+
+  const handleStyleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+      
+      setIsExtractingStyle(true);
+      try {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = async () => {
+              const base64DataUrl = reader.result as string;
+              // Extract base64 content
+              const { mimeType, data } = await toBase64FromUrl(base64DataUrl);
+              const extractedPrompt = await geminiService.extractStyleFromImage({ mimeType, data });
+              setStylePrompt(extractedPrompt);
+          };
+      } catch (error) {
+          console.error("Style extraction failed", error);
+          alert("风格提取失败，请重试。");
+      } finally {
+          setIsExtractingStyle(false);
+          // Clear input so same file can be selected again
+          if (styleImageInputRef.current) styleImageInputRef.current.value = '';
+      }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,15 +76,17 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
       alert('请输入项目名称。');
       return;
     }
-    
-    const selectedStyle = DRAWING_STYLES.find(s => s.id === style);
+    if (!stylePrompt.trim()) {
+        alert('请选择或输入一种画风。');
+        return;
+    }
 
     onCreateProject({
       projectId: `proj-${Date.now()}`,
       projectName,
       format,
-      style,
-      stylePrompt: selectedStyle ? selectedStyle.id : DrawingStyle.JAPANESE_SHONEN,
+      style, // This tracks the 'Enum' selection (e.g. CUSTOM)
+      stylePrompt, // This tracks the actual text prompt used
     });
   };
 
@@ -64,7 +120,7 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
 
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-yellow-400 relative overflow-hidden font-sans">
+    <div className="min-h-screen flex items-center justify-center bg-yellow-400 relative overflow-hidden font-sans p-4">
       {/* Dynamic Manga Background Pattern */}
       <div 
         className="absolute inset-0 opacity-20 pointer-events-none"
@@ -148,7 +204,7 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
                         <select
                             id="drawing-style"
                             value={style}
-                            onChange={(e) => setStyle(e.target.value as DrawingStyle)}
+                            onChange={handleStyleChange}
                             className="w-full px-4 py-3 bg-gray-50 border-4 border-black text-black font-bold appearance-none focus:outline-none focus:bg-yellow-50 focus:border-cyan-500 focus:shadow-[4px_4px_0px_0px_rgba(6,182,212,1)] transition-all"
                         >
                             {DRAWING_STYLES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
@@ -158,6 +214,48 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
                         </div>
                     </div>
                   </div>
+              </div>
+
+              {/* Custom Style Description Area (Shows only when Custom is selected or always allows edit?) */}
+              {/* To allow tweaking of presets, we show it always, but it's especially important for CUSTOM */}
+              <div className="space-y-2">
+                   <div className="flex justify-between items-end">
+                       <label htmlFor="style-prompt" className="block text-sm font-bold text-gray-700 uppercase">
+                           STYLE PROMPT (AI INSTRUCTION)
+                       </label>
+                       {style === DrawingStyle.CUSTOM && (
+                           <div className="flex gap-2">
+                               <input 
+                                   type="file" 
+                                   ref={styleImageInputRef}
+                                   className="hidden"
+                                   accept="image/*"
+                                   onChange={handleStyleImageUpload}
+                               />
+                               <button 
+                                   type="button"
+                                   onClick={() => styleImageInputRef.current?.click()}
+                                   disabled={isExtractingStyle}
+                                   className="text-xs bg-indigo-600 text-white px-2 py-1 font-bold border-2 border-black shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[1px] hover:translate-y-[1px] hover:shadow-none transition-all flex items-center gap-1"
+                               >
+                                   {isExtractingStyle ? <LoadingSpinner size={12} /> : '📷'} EXTRACT FROM IMAGE / 从图提取
+                               </button>
+                           </div>
+                       )}
+                   </div>
+                   <textarea
+                       id="style-prompt"
+                       value={stylePrompt}
+                       onChange={(e) => setStylePrompt(e.target.value)}
+                       rows={3}
+                       placeholder="这里显示生成图片的风格提示词。您可以手动修改它，或者上传图片让 AI 自动填写。"
+                       className={`w-full px-4 py-2 bg-gray-50 border-4 border-black text-black text-sm font-mono placeholder-gray-400 focus:outline-none focus:bg-yellow-50 focus:border-pink-500 transition-all ${style === DrawingStyle.CUSTOM ? 'border-pink-500 bg-pink-50' : ''}`}
+                   />
+                   {style === DrawingStyle.CUSTOM && (
+                       <p className="text-xs text-pink-600 font-bold italic">
+                           * 提示：上传一张您喜欢的漫画截图，AI 会自动分析其线条、光影和色调。
+                       </p>
+                   )}
               </div>
 
               {/* Main Action Button */}

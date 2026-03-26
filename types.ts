@@ -13,6 +13,13 @@ export enum DrawingStyle {
   AMERICAN_REALISTIC = 'american realistic comic book style, detailed illustrations, cinematic lighting',
   CHIBI = 'chibi style, cute, large heads, small bodies, vibrant colors',
   INK_WASH = 'traditional ink wash painting style, monochrome, minimalist, expressive brushstrokes',
+  // New Styles
+  OBATA_STYLE = 'Takeshi Obata style, intricate gothic details, high contrast lighting, sharp and realistic facial features, psychological tension, dark atmosphere, highly detailed backgrounds',
+  ODA_STYLE = 'Eiichiro Oda style, exaggerated expressions, vibrant energy, fish-eye lens effects, dynamic action lines, whimsical character designs, strong ink outlines',
+  CLAMP_STYLE = 'CLAMP style, extreme detail, flowing hair, long limbs, decorative elements, magical atmosphere, feathers and petals, dramatic composition, shoujo manga aesthetic',
+  SHINKAI_STYLE = 'Makoto Shinkai style, breathtaking lighting, hyper-realistic clouds and sky, lens flares, emotional atmosphere, vibrant colors, high fidelity background art',
+  JUNJI_ITO_STYLE = 'Junji Ito style, heavy ink lines, horror aesthetic, spiral patterns, unsettling atmosphere, intricate cross-hatching, realistic yet disturbing facial features',
+  CUSTOM = 'custom', // Placeholder for custom logic
 }
 
 export enum PageMode {
@@ -25,7 +32,7 @@ export interface Project {
   projectName: string;
   format: ComicFormat;
   style: DrawingStyle;
-  stylePrompt: string;
+  stylePrompt: string; // This holds the actual prompt used for generation
 }
 
 export interface Character {

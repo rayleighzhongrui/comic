@@ -1,4 +1,5 @@
 
+
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import type { Project, Character, Asset, Page, Relationship } from './types';
 import ProjectCreation from './components/ProjectCreation';
@@ -86,6 +87,10 @@ const App: React.FC = () => {
     setAssets([]);
     setPages([]);
     setRelationships([]);
+  }, []);
+  
+  const handleUpdateProject = useCallback((updatedProject: Project) => {
+    setProject(updatedProject);
   }, []);
   
   const handleLoadBackup = useCallback(async () => {
@@ -284,6 +289,7 @@ const App: React.FC = () => {
             onAddRelationship={handleAddRelationship}
             onUpdateRelationship={handleUpdateRelationship}
             onDeleteRelationship={handleDeleteRelationship}
+            onUpdateProject={handleUpdateProject}
         />
         {isSaving && (
             <div className="fixed bottom-4 right-4 bg-black text-white px-3 py-1 text-xs font-bold uppercase border-2 border-white shadow-lg z-50 animate-pulse">

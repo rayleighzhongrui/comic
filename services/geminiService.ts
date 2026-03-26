@@ -1,4 +1,5 @@
 
+
 // @ts-nocheck
 // This service connects to the Google Gemini API.
 // It requires a valid API key to be set in the environment variables.
@@ -309,6 +310,45 @@ export const geminiService = {
       // Re-throw the error to be handled by the calling component.
       throw error;
     }
+  },
+  
+  /**
+   * Analyzes an uploaded image and extracts its artistic style as a text prompt.
+   * This is used to create custom style presets.
+   */
+  extractStyleFromImage: async (imageBase64: { mimeType: string; data: string }): Promise<string> => {
+      const prompt = `
+        You are an expert art critic and manga editor. 
+        Your task is to analyze the provided image and extract its artistic style into a concise but highly descriptive prompt suitable for an AI image generator.
+        
+        Focus on:
+        1. Line quality (e.g., thin, thick, sketchy, clean, ink wash).
+        2. Coloring style (e.g., monochrome, vibrant, pastel, watercolor, cel-shaded, screentones).
+        3. Lighting (e.g., high contrast, cinematic, flat, soft).
+        4. Atmosphere (e.g., dark, whimsical, gritty, ethereal).
+        5. Specific artistic influences if apparent (e.g., "reminiscent of 90s shoujo", "cyberpunk noir").
+        
+        Return ONLY the descriptive prompt string in English. Do not include introductory text like "Here is the style description:".
+      `;
+      
+      const contentRequest = {
+          model: 'gemini-2.5-flash', // Vision capabilities available in standard model
+          contents: {
+              parts: [
+                  { text: prompt },
+                  { inlineData: imageBase64 }
+              ]
+          }
+      };
+      
+      try {
+          const response = await ai.models.generateContent(contentRequest);
+          const styleDescription = response.text.trim();
+          return styleDescription;
+      } catch (error) {
+          console.error("Error extracting style:", error);
+          throw new Error("Failed to extract style from image.");
+      }
   },
 
   /**
