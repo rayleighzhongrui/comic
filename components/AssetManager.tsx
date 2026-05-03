@@ -22,7 +22,6 @@ interface AssetSectionProps<T extends Character | Asset> {
 const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, onEditItem, onDeleteItem, placeholder, project, type }: AssetSectionProps<T>) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [seed, setSeed] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
 
@@ -48,7 +47,7 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
       if (!imageUrl) {
         const typeName = type === 'character' ? '角色' : '道具';
         const prompt = `${project.stylePrompt}, ${typeName}设定集, 名为${name}的${typeName}的全身视图, 描述为: ${description}`;
-        const images = await geminiService.generateReferenceImage(prompt, seed);
+        const images = await geminiService.generateReferenceImage(prompt);
         imageUrl = images[0];
       }
       
@@ -77,10 +76,8 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
       setName('');
       setDescription('');
       setUploadedImage(null);
-      // We do not reset seed immediately to allow user to reuse lucky seed
     } catch (error) {
       console.error(`Error generating ${type}:`, error);
-      alert(`生成${type === 'character' ? '角色' : '道具'}失败。请重试。`);
     } finally {
       setIsLoading(false);
     }
@@ -153,28 +150,6 @@ const AssetSection = <T extends Character | Asset,>({ title, items, onAddItem, o
           disabled={isLoading}
         />
         
-        {/* Seed Input */}
-        <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-black uppercase w-12">SEED</span>
-            <input
-                type="number"
-                value={seed === undefined ? '' : seed}
-                onChange={e => setSeed(e.target.value ? parseInt(e.target.value) : undefined)}
-                placeholder="随机 (默认)"
-                className="flex-1 bg-white text-black border-2 border-black rounded-sm px-2 py-1 text-xs font-bold focus:outline-none focus:bg-yellow-50"
-                disabled={isLoading}
-            />
-             <button
-                type="button"
-                onClick={() => setSeed(Math.floor(Math.random() * 1000000))}
-                className="px-2 py-1 bg-gray-200 hover:bg-gray-300 border-2 border-black text-black font-bold text-xs"
-                title="随机生成一个种子"
-            >
-                🎲
-            </button>
-        </div>
-
-
          <div className="mt-1">
           <label className="text-xs font-bold text-black uppercase">REF IMAGE (OPTIONAL)</label>
           <div className="mt-1 flex items-center gap-4">

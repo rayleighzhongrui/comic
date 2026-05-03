@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import type { Project, ComicFormat } from '../types';
-import { DrawingStyle } from '../types';
+import { DrawingStyle, ImageModel } from '../types';
 import { DRAWING_STYLES, COMIC_FORMATS } from '../constants';
 import Modal from './Modal';
 import { geminiService } from '../services/geminiService';
@@ -21,7 +21,14 @@ const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOpen, onC
   const [format, setFormat] = useState<ComicFormat>(project.format);
   const [style, setStyle] = useState<DrawingStyle>(project.style);
   const [stylePrompt, setStylePrompt] = useState<string>(project.stylePrompt);
+  const [imageModel, setImageModel] = useState<ImageModel>(project.imageModel || ImageModel.GEMINI_2_5_FLASH);
   
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModel = e.target.value as ImageModel;
+    setImageModel(newModel);
+    geminiService.checkAndOpenApiKeyDialog(newModel);
+  };
+
   const [isExtractingStyle, setIsExtractingStyle] = useState(false);
   const styleImageInputRef = useRef<HTMLInputElement>(null);
 
@@ -32,6 +39,7 @@ const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOpen, onC
           setFormat(project.format);
           setStyle(project.style);
           setStylePrompt(project.stylePrompt);
+          setImageModel(project.imageModel || ImageModel.GEMINI_2_5_FLASH);
       }
   }, [isOpen, project]);
 
@@ -81,7 +89,8 @@ const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOpen, onC
         projectName,
         format,
         style,
-        stylePrompt
+        stylePrompt,
+        imageModel
     });
     onClose();
   };
@@ -132,6 +141,22 @@ const ProjectSettingsModal: React.FC<ProjectSettingsModalProps> = ({ isOpen, onC
                     {DRAWING_STYLES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
             </div>
+        </div>
+
+        <div className="space-y-2">
+            <label htmlFor="edit-model" className="block text-lg font-black italic text-black uppercase transform -skew-x-6">
+            AI Model
+            </label>
+            <select
+                id="edit-model"
+                value={imageModel}
+                onChange={handleModelChange}
+                className="w-full px-4 py-2 bg-gray-50 border-4 border-black text-black font-bold focus:outline-none focus:bg-yellow-50 focus:border-cyan-500 transition-all"
+            >
+                <option value={ImageModel.GEMINI_2_5_FLASH}>Gemini 2.5 Flash (Free/免费)</option>
+                <option value={ImageModel.GEMINI_3_1_FLASH}>Gemini 3.1 Flash (Paid/付费)</option>
+                <option value={ImageModel.IMAGEN_4}>Imagen 4.0 (Paid/付费)</option>
+            </select>
         </div>
 
         <div className="space-y-2">

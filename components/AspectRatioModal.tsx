@@ -133,7 +133,7 @@ const AspectRatioModal: React.FC<AspectRatioModalProps> = ({ project, page, onCl
         ]);
         
         setLoadingText('AI 正在扩展图片...');
-        const newImageUrl = await geminiService.extendComicPanel(page.userStoryText, imageOnCanvasB64, maskB64);
+        const newImageUrl = await geminiService.extendComicPanel(page.userStoryText, imageOnCanvasB64, maskB64, project.imageModel);
         onUpdatePage({ ...page, imageUrl: newImageUrl });
 
     } catch (error) {

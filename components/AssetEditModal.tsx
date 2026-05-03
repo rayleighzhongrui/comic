@@ -17,7 +17,6 @@ const AssetEditModal: React.FC<AssetEditModalProps> = ({ project, item, onClose,
   const [editableItem, setEditableItem] = useState(item);
   const [isEditingImage, setIsEditingImage] = useState(false);
   const [isRegenerating, setIsRegenerating] = useState(false);
-  const [seed, setSeed] = useState<number | undefined>(undefined);
   
   useEffect(() => {
     setEditableItem(item);
@@ -48,7 +47,7 @@ const AssetEditModal: React.FC<AssetEditModalProps> = ({ project, item, onClose,
     try {
         const typeName = isCharacter ? '角色' : '道具';
         const prompt = `${project.stylePrompt}, ${typeName}设定集, 名为${editableItem.name}的${typeName}的全身视图, 描述为: ${editableItem.corePrompt}`;
-        const images = await geminiService.generateReferenceImage(prompt, seed);
+        const images = await geminiService.generateReferenceImage(prompt, project.imageModel);
         if (images && images.length > 0) {
             setEditableItem(prev => ({ ...prev, referenceImageUrl: images[0] }));
         } else {
@@ -82,27 +81,6 @@ const AssetEditModal: React.FC<AssetEditModalProps> = ({ project, item, onClose,
                     </div>
                 )}
               </div>
-              
-               {/* Seed Input for Regeneration */}
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-gray-300 uppercase w-10">SEED</span>
-                    <input
-                        type="number"
-                        value={seed === undefined ? '' : seed}
-                        onChange={e => setSeed(e.target.value ? parseInt(e.target.value) : undefined)}
-                        placeholder="随机"
-                        className="flex-1 bg-gray-700 text-white border border-gray-600 rounded-sm px-2 py-1 text-xs focus:outline-none focus:border-indigo-500"
-                        disabled={isRegenerating}
-                    />
-                     <button
-                        type="button"
-                        onClick={() => setSeed(Math.floor(Math.random() * 1000000))}
-                        className="px-2 py-1 bg-gray-600 hover:bg-gray-500 text-white font-bold text-xs border border-gray-600 rounded-sm"
-                        title="随机生成一个种子"
-                    >
-                        🎲
-                    </button>
-                </div>
 
               <div className="space-y-2">
                 <button onClick={handleRegenerateImage} disabled={isRegenerating} className="w-full flex justify-center items-center bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2 px-4 rounded-md transition-colors disabled:bg-gray-500 disabled:cursor-not-allowed">
@@ -153,6 +131,7 @@ const AssetEditModal: React.FC<AssetEditModalProps> = ({ project, item, onClose,
         <ImageEditorModal
           imageUrl={editableItem.referenceImageUrl}
           aspectRatio="1:1"
+          imageModel={project.imageModel}
           onClose={() => setIsEditingImage(false)}
           onSave={(newImageUrl) => {
             setEditableItem(prev => ({...prev, referenceImageUrl: newImageUrl }));

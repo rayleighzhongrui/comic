@@ -20,6 +20,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   
   const [isLoading, setIsLoading] = useState(false);
   const [loadingText, setLoadingText] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<string[]>([]);
   const [finalPrompt, setFinalPrompt] = useState('');
@@ -28,9 +29,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   
   const [customLayoutConfig, setCustomLayoutConfig] = useState<number[]>([1]); // e.g., [1, 2] means 2 rows, 1 panel on top, 2 on bottom.
 
-  // Seed State
-  const [seed, setSeed] = useState<number>(Math.floor(Math.random() * 1000000));
-  const [isSeedLocked, setIsSeedLocked] = useState(false);
+
 
   // cleanup effect for deleted characters/assets
   useEffect(() => {
@@ -137,12 +136,6 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
     const handleColsChange = (rowIndex: number, newCols: number) => {
         setCustomLayoutConfig(prev => prev.map((c, i) => i === rowIndex ? newCols : c));
     };
-    
-    const handleRandomizeSeed = () => {
-        if (!isSeedLocked) {
-            setSeed(Math.floor(Math.random() * 1000000));
-        }
-    };
 
   const buildPrompt = (
     currentLayout: LayoutTemplate, 
@@ -229,7 +222,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
 
         **重要指令：** 生成的漫画中绝对不能包含任何文字、标题、音效词 (SFX) 或符号。如果场景需要对话框或气泡，请将它们画成【完全空白】。
         
-        **布局描述:** 图像必须包含 ${currentLayout.panelCount} 个分镜，排列方式如下: ${currentLayout.description}
+        **布局描述:** 图像必须包含 ${currentLayout.panelCount} 个独立的分镜，每个分镜之间必须有清晰的黑色边框和白色间隙（gutters）。排列方式如下: ${currentLayout.description}。请确保这是一个明显的多格漫画页面，而不是一张单一的插图。
         
         **分镜内容:**
         ${panelContentDescriptions}
@@ -242,19 +235,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   
   const handleGenerate = async (isContinuation: boolean = false) => {
     setIsLoading(true);
-
-    // Only randomize if not locked and not a continuation (continuation logic handled below, 
-    // but typically we might want to keep the seed if user is iterating).
-    // Actually, usually we want to regenerate seed if we click Generate.
-    if (!isSeedLocked) {
-        // We update the seed state so the UI reflects the seed used for THIS generation.
-        const newSeed = Math.floor(Math.random() * 1000000);
-        setSeed(newSeed);
-    }
-    
-    // Capture the seed to use in this closure (state update is async)
-    const seedToUse = isSeedLocked ? seed : Math.floor(Math.random() * 1000000);
-    if (!isSeedLocked) setSeed(seedToUse); // Sync UI
+    setErrorMessage('');
 
     try {
       let scenesForGeneration = scenes;
@@ -339,7 +320,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       
       const currentStory = scenesForGeneration.map(s => s.description).join(' ').trim();
       if (!currentStory) {
-        alert("请至少为一个分镜提供故事描述。");
+        console.error("No story text provided");
         setIsLoading(false);
         return;
       }
@@ -372,7 +353,7 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
           aspectRatio = "3:4";
       }
 
-      const images = await geminiService.generateComicPanels(prompt, imageParts, aspectRatio, seedToUse);
+      const images = await geminiService.generateComicPanels(prompt, imageParts, aspectRatio, project.imageModel);
       
       const processedImages = await Promise.all(
         images.map(async (imgUrl) => {
@@ -384,9 +365,13 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       setGeneratedImages(processedImages);
       setIsModalOpen(true);
 
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to generate panels:', error);
-      alert('生成图片时发生错误。请检查控制台获取详细信息。');
+      if (error && error.message && error.message.includes('429')) {
+         setErrorMessage('API调用额度已用尽 (Quota Exceeded)。请更换其他模型（如Imagen）或检查您的API。');
+      } else {
+         setErrorMessage(`发生错误: ${error?.message || '未知错误'}。请检查控制台。`);
+      }
     } finally {
       setIsLoading(false);
       setLoadingText('');
@@ -413,7 +398,6 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
     })));
     setPageMode(PageMode.SINGLE);
     setPageOutline('');
-    // If seed was locked, we keep it. If it wasn't, we've already randomized it in state.
   };
 
   const isStoryEmpty = scenes.every(s => !s.description.trim());
@@ -421,6 +405,12 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
   return (
     <div className="bg-white border-4 border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4 space-y-6">
       <h3 className="text-xl font-black italic uppercase text-black border-b-2 border-black pb-2">CREATE NEW PAGE</h3>
+      
+      {errorMessage && (
+        <div className="mb-4 bg-red-100 border-l-4 border-red-600 text-red-800 p-3 shadow-sm font-bold text-sm">
+          {errorMessage}
+        </div>
+      )}
 
       <div className="space-y-4">
         <ContinuationSelectionGrid title="CONTEXT CHARACTERS (AI WRITING)" items={characters} selectedIds={selectedCharIdsForContinuation} onToggle={id => toggleContinuationSelection(id, selectedCharIdsForContinuation, setSelectedCharIdsForContinuation)} />
@@ -612,43 +602,6 @@ const PageCreator: React.FC<PageCreatorProps> = ({ project, characters, assets, 
       
       <div className="space-y-4 pt-4 border-t-4 border-black border-dashed">
         
-        {/* SEED CONTROL PANEL */}
-        <div className="bg-gray-100 border-2 border-black p-3 rounded-sm shadow-sm flex flex-col gap-2">
-            <div className="flex justify-between items-center">
-                 <label className="text-xs font-bold text-black uppercase">CONSISTENCY SEED</label>
-                 <div className="flex items-center gap-2">
-                     <span className="text-[10px] font-bold text-gray-500 uppercase">{isSeedLocked ? 'LOCKED (CONSISTENT)' : 'RANDOM (VARIATION)'}</span>
-                     <button 
-                        onClick={() => setIsSeedLocked(!isSeedLocked)}
-                        className={`w-8 h-5 rounded-full flex items-center transition-colors px-1 border border-black ${isSeedLocked ? 'bg-green-500 justify-end' : 'bg-gray-300 justify-start'}`}
-                     >
-                         <div className="w-3 h-3 bg-white rounded-full shadow-sm"></div>
-                     </button>
-                 </div>
-            </div>
-            <div className="flex gap-2">
-                <input 
-                    type="number" 
-                    value={seed}
-                    onChange={(e) => {
-                        setSeed(parseInt(e.target.value));
-                        setIsSeedLocked(true); // Auto-lock if manually editing
-                    }}
-                    className="flex-1 bg-white border-2 border-black px-2 py-1 text-sm font-bold focus:outline-none"
-                    title="Fixed seed for generation"
-                />
-                <button 
-                    onClick={handleRandomizeSeed}
-                    disabled={isSeedLocked}
-                    className="bg-yellow-400 hover:bg-yellow-300 border-2 border-black px-3 py-1 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Randomize Seed"
-                >
-                    🎲
-                </button>
-            </div>
-             <p className="text-[10px] text-gray-500 italic">Tip: Lock the seed to maintain character consistency across regenerations if the prompt changes slightly.</p>
-        </div>
-
         <div>
             <label htmlFor="page-outline" className="block text-xs font-bold text-black uppercase mb-1">PAGE OUTLINE (AI GUIDE)</label>
             <textarea

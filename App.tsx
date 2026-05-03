@@ -8,6 +8,13 @@ import { storageService } from './services/storage';
 import Modal from './components/Modal';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    return localStorage.getItem('app-auth') === 'true';
+  });
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState(false);
+
   const [project, setProject] = useState<Project | null>(null);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -33,8 +40,20 @@ const App: React.FC = () => {
   // Ref to track if data has changed since last save to debounce
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (username === '钟子鉴' && password === '99091045') {
+      localStorage.setItem('app-auth', 'true');
+      setIsAuthenticated(true);
+      setLoginError(false);
+    } else {
+      setLoginError(true);
+    }
+  };
+
   // Check for existing backup on mount using IndexedDB
   useEffect(() => {
+    if (!isAuthenticated) return;
     const checkBackup = async () => {
         try {
             const data = await storageService.loadProjectData();
@@ -46,11 +65,11 @@ const App: React.FC = () => {
         }
     };
     checkBackup();
-  }, []);
+  }, [isAuthenticated]);
 
   // Auto-save effect using IndexedDB with debounce
   useEffect(() => {
-    if (!project) return;
+    if (!project || !isAuthenticated) return;
 
     if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
@@ -79,7 +98,7 @@ const App: React.FC = () => {
     return () => {
         if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
-  }, [project, characters, assets, pages, relationships]);
+  }, [project, characters, assets, pages, relationships, isAuthenticated]);
 
   const handleCreateProject = useCallback((newProject: Project) => {
     setProject(newProject);
@@ -257,6 +276,44 @@ const App: React.FC = () => {
     });
   }, []);
 
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen bg-yellow-400 flex items-center justify-center p-4 selection:bg-pink-300 selection:text-black">
+        <div className="bg-white border-4 border-black p-8 max-w-sm w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)]">
+          <h1 className="text-3xl font-black uppercase italic text-center mb-6">Manga Studio Login</h1>
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm font-bold uppercase mb-1">Username / 账号</label>
+              <input 
+                type="text" 
+                value={username}
+                onChange={e => setUsername(e.target.value)}
+                className="w-full border-2 border-black p-2 font-bold focus:outline-none focus:bg-yellow-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-bold uppercase mb-1">Password / 密码</label>
+              <input 
+                type="password" 
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                className="w-full border-2 border-black p-2 font-bold focus:outline-none focus:bg-yellow-50 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+                required
+              />
+            </div>
+            {loginError && <p className="text-red-500 font-bold text-sm">账号或密码错误</p>}
+            <button 
+              type="submit"
+              className="w-full bg-pink-600 hover:bg-pink-500 text-white font-black py-3 border-4 border-black shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all uppercase mt-4"
+            >
+              Enter Studio
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   if (!project) {
     return (

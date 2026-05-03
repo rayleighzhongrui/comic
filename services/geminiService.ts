@@ -5,7 +5,7 @@
 // It requires a valid API key to be set in the environment variables.
 
 import { GoogleGenAI, Modality, Type } from "@google/genai";
-import type { Character, Scene } from '../types';
+import { type Character, type Scene, ImageModel } from '../types';
 
 // A function to get a random placeholder image in case of API failure
 const getPlaceholderImage = (width = 1024, height = 1024) => {
@@ -56,17 +56,42 @@ const cleanJsonText = (text: string): string => {
   return cleaned;
 };
 
-
-// This should be initialized with a real API key in a production environment.
-// It is assumed that `process.env.API_KEY` is available.
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+/**
+ * Helper to get the appropriate GoogleGenAI instance based on the model.
+ */
+const getAI = (model: string) => {
+  // Paid models use process.env.API_KEY, free models use process.env.GEMINI_API_KEY
+  const paidModels = ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image-preview', 'imagen-4.0-generate-001', 'veo-3.1-fast-generate-preview', 'veo-3.1-generate-preview', 'lyria-3-clip-preview', 'lyria-3-pro-preview'];
+  const apiKey = paidModels.includes(model) ? process.env.API_KEY : process.env.GEMINI_API_KEY;
+  return new GoogleGenAI({ apiKey: apiKey || process.env.GEMINI_API_KEY });
+};
 
 export const geminiService = {
   /**
+   * Checks if a paid API key is selected and opens the selection dialog if not.
+   */
+  checkAndOpenApiKeyDialog: async (model: string): Promise<boolean> => {
+    const paidModels = ['gemini-3.1-flash-image-preview', 'gemini-3-pro-image-preview', 'imagen-4.0-generate-001', 'veo-3.1-fast-generate-preview', 'veo-3.1-generate-preview', 'lyria-3-clip-preview', 'lyria-3-pro-preview'];
+    if (!paidModels.includes(model)) return true;
+
+    if (window.aistudio && typeof window.aistudio.hasSelectedApiKey === 'function') {
+      const hasKey = await window.aistudio.hasSelectedApiKey();
+      if (!hasKey) {
+        if (typeof window.aistudio.openSelectKey === 'function') {
+          await window.aistudio.openSelectKey();
+          // Assume success after opening as per instructions (race condition mitigation)
+          return true;
+        }
+      }
+    }
+    return true;
+  },
+
+  /**
    * Generates a reference image for a character or asset using imagen-4.0-generate-001.
    */
-  generateReferenceImage: async (prompt: string, seed?: number): Promise<string[]> => {
-    console.log("Generating reference image with prompt:", prompt, "Seed:", seed);
+  generateReferenceImage: async (prompt: string, model: ImageModel = ImageModel.IMAGEN_4): Promise<string[]> => {
+    console.log("Generating reference image with prompt:", prompt, "Model:", model);
     try {
       const config: any = {
         numberOfImages: 1,
@@ -74,23 +99,21 @@ export const geminiService = {
         aspectRatio: '1:1',
       };
       
-      // Only add seed if it's defined
-      if (typeof seed === 'number') {
-        // Imagen models might use 'randomSeed' or just rely on regeneration, 
-        // but for GenAI SDK consistency with other calls we check support.
-        // Currently Imagen via GenAI SDK might not fully expose seed control in the same way as generateContent,
-        // but passing it in config is the standard way if supported. 
-        // Note: For Imagen, strict seed control varies by specific model version.
-      }
-
+      const ai = getAI(model);
       const response = await ai.models.generateImages({
-          model: 'imagen-4.0-generate-001',
+          model: model,
           prompt: prompt,
           config: config,
       });
       const base64ImageBytes = response.generatedImages[0].image.imageBytes;
       return [`data:image/jpeg;base64,${base64ImageBytes}`];
     } catch (error) {
+      if (error instanceof Error && error.message.includes("Requested entity was not found")) {
+        console.warn("API Key might be invalid or not selected. Prompting user.");
+        if (window.aistudio && typeof window.aistudio.openSelectKey === 'function') {
+          await window.aistudio.openSelectKey();
+        }
+      }
       console.error("Error generating reference image:", error);
       // Fallback to a placeholder on error
       return [getPlaceholderImage(512, 512)];
@@ -104,8 +127,11 @@ export const geminiService = {
    * 
    * @param aspectRatio - The aspect ratio for the generated image (e.g., "3:4", "4:3", "9:16").
    */
-  generateComicPanels: async (prompt: string, referenceImages: { mimeType: string; data: string }[], aspectRatio: string, seed?: number): Promise<string[]> => {
-    console.log("Generating comic panels with multimodal prompt:", { prompt, referenceImagesCount: referenceImages.length, seed, aspectRatio });
+  generateComicPanels: async (prompt: string, referenceImages: { mimeType: string; data: string }[], aspectRatio: string, model: ImageModel = ImageModel.GEMINI_2_5_FLASH): Promise<string[]> => {
+    console.log("Generating comic panels with multimodal prompt:", { prompt, referenceImagesCount: referenceImages.length, aspectRatio, model });
+    
+    // Ensure API Key is available before proceeding to avoid parallel prompt hangs
+    await geminiService.checkAndOpenApiKeyDialog(model);
     
     const imageParts = referenceImages.map(img => ({
       inlineData: {
@@ -115,21 +141,31 @@ export const geminiService = {
     }));
 
     const config: any = {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
-      imageConfig: {
-        aspectRatio: aspectRatio,
-      },
+      responseModalities: ["IMAGE"]
     };
+    if (model === ImageModel.GEMINI_3_1_FLASH) {
+      config.imageConfig = {
+        aspectRatio: aspectRatio,
+        imageSize: "1K"
+      };
+    } else {
+      config.imageConfig = {
+        aspectRatio: aspectRatio
+      };
+    }
 
-    if (typeof seed === 'number') {
-      config.seed = seed;
+    let enhancedPrompt = prompt;
+    if (model === ImageModel.GEMINI_3_1_FLASH) {
+      enhancedPrompt = `SYSTEM: You are a professional manga artist. You MUST generate a single image that is divided into multiple comic panels according to the layout description. CLEAR PANEL BORDERS AND GUTTERS ARE MANDATORY. DO NOT generate a single continuous scene. The output MUST be a comic page with distinct panels.
+      
+      USER REQUEST: ${prompt}`;
     }
 
     const contentRequest = {
-      model: 'gemini-2.5-flash-image',
+      model: model,
       contents: {
         parts: [
-          { text: prompt },
+          { text: enhancedPrompt },
           ...imageParts,
         ],
       },
@@ -140,40 +176,22 @@ export const geminiService = {
      * Attempts to generate a single comic panel image. If it fails, it will retry once.
      * This makes the generation process more resilient to transient API errors.
      */
-    const attemptGeneration = async (): Promise<string> => {
-      const generateAndValidate = async () => {
-        const response = await ai.models.generateContent(contentRequest);
-        const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
-        if (imagePart?.inlineData) {
-          const { mimeType, data } = imagePart.inlineData;
-          return `data:${mimeType};base64,${data}`;
-        }
-        // Throw an error to trigger the catch block for a retry if no image is found.
-        throw new Error("Generated content did not include a valid image part.");
-      };
-
-      try {
-        // First attempt
-        return await generateAndValidate();
-      } catch (error) {
-        console.warn("Initial generation attempt failed, retrying...", error);
-        try {
-          // Second and final attempt
-          return await generateAndValidate();
-        } catch (retryError) {
-          console.error("Generation retry also failed. Using placeholder.", retryError);
-          return getPlaceholderImage(1024, 576);
-        }
+    try {
+      const ai = getAI(model);
+      const response = await ai.models.generateContent(contentRequest);
+      const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
+      if (imagePart?.inlineData) {
+        const { mimeType, data } = imagePart.inlineData;
+        return [`data:${mimeType};base64,${data}`];
       }
-    };
-
-    // Run two generation attempts in parallel, each with its own retry logic.
-    const [result1, result2] = await Promise.all([
-      attemptGeneration(),
-      attemptGeneration()
-    ]);
-      
-    return [result1, result2];
+      throw new Error("Generated content did not include a valid image part.");
+    } catch (error: any) {
+      console.error("API Generation Error:", error);
+      if (error && error.status === 429) {
+          throw new Error("429 Quota Exceeded");
+      }
+      throw error;
+    }
   },
 
   /**
@@ -183,10 +201,13 @@ export const geminiService = {
     prompt: string, 
     originalImage: { mimeType: string; data: string }, 
     maskImage: { mimeType: string; data: string },
-    referenceImage?: { mimeType: string; data: string },
-    seed?: number
+    model: ImageModel = ImageModel.GEMINI_2_5_FLASH,
+    referenceImage?: { mimeType: string; data: string }
   ): Promise<string> => {
-    console.log("Editing comic panel with prompt:", prompt, "Seed:", seed);
+    console.log("Editing comic panel with prompt:", prompt, "Model:", model);
+    
+    // Check key before anything
+    await geminiService.checkAndOpenApiKeyDialog(model);
     
     let userInstruction = prompt;
     // Keywords for removal/inpainting tasks in both English and Chinese
@@ -232,20 +253,19 @@ export const geminiService = {
     parts.unshift({ text: fullPrompt.trim().replace(/\s+/g, ' ') });
 
 
-    const config: any = {
-      responseModalities: [Modality.IMAGE, Modality.TEXT],
-    };
-    if (typeof seed === 'number') {
-      config.seed = seed;
+    const config: any = {};
+    if (model === ImageModel.GEMINI_3_1_FLASH) {
+      config.imageConfig = { imageSize: "1K" };
     }
 
     const contentRequest = {
-      model: 'gemini-2.5-flash-image',
+      model: model,
       contents: { parts },
       config: config,
     };
 
     try {
+      const ai = getAI(model);
       const response = await ai.models.generateContent(contentRequest);
       const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
       if (imagePart?.inlineData) {
@@ -262,9 +282,13 @@ export const geminiService = {
   extendComicPanel: async (
     storyText: string,
     imageOnCanvas: { mimeType: string; data: string },
-    maskImage: { mimeType: string; data: string }
+    maskImage: { mimeType: string; data: string },
+    model: ImageModel = ImageModel.GEMINI_2_5_FLASH
   ): Promise<string> => {
-    console.log("Extending comic panel with story context:", storyText);
+    console.log("Extending comic panel with story context:", storyText, "Model:", model);
+
+    // Check key before anything
+    await geminiService.checkAndOpenApiKeyDialog(model);
 
     const prompt = `
       **Primary Goal: Image Outpainting.**
@@ -283,8 +307,13 @@ export const geminiService = {
       **Final Output:** A single, high-quality, larger image with the empty space filled in.
     `.trim().replace(/\s+/g, ' ');
 
+    const config: any = {};
+    if (model === ImageModel.GEMINI_3_1_FLASH) {
+      config.imageConfig = { imageSize: "1K" };
+    }
+
     const contentRequest = {
-      model: 'gemini-2.5-flash-image',
+      model: model,
       contents: {
         parts: [
           { text: prompt },
@@ -292,12 +321,11 @@ export const geminiService = {
           { inlineData: maskImage }
         ]
       },
-      config: {
-        responseModalities: [Modality.IMAGE, Modality.TEXT],
-      },
+      config: config,
     };
 
     try {
+      const ai = getAI(model);
       const response = await ai.models.generateContent(contentRequest);
       const imagePart = response.candidates?.[0]?.content?.parts?.find(part => part.inlineData);
       if (imagePart?.inlineData) {
@@ -331,8 +359,9 @@ export const geminiService = {
         Return ONLY the descriptive prompt string in English. Do not include introductory text like "Here is the style description:".
       `;
       
+      const model = 'gemini-2.5-flash';
       const contentRequest = {
-          model: 'gemini-2.5-flash', // Vision capabilities available in standard model
+          model: model, // Vision capabilities available in standard model
           contents: {
               parts: [
                   { text: prompt },
@@ -342,6 +371,7 @@ export const geminiService = {
       };
       
       try {
+          const ai = getAI(model);
           const response = await ai.models.generateContent(contentRequest);
           const styleDescription = response.text.trim();
           return styleDescription;
@@ -389,42 +419,51 @@ export const geminiService = {
     }
     const characterPoolNames = characterPool.map(c => c.name);
     
-    let prompt = `你是一位富有创意的漫画导演和编剧。到目前为止的故事是：“${previousStory}”。\n`;
-    prompt += `现在，请为下一页续写故事。这一页有一个特殊的布局：“${layoutDescription}”，它包含 ${panelCount} 个分镜。\n`;
+    let prompt = `你是一位富有创意的漫画编剧。你需要根据前文续写接下来的漫画分镜脚本。\n\n`;
+    prompt += `【前文回顾】\n`;
+    prompt += previousStory ? `${previousStory}\n\n` : `(这是故事的开篇，还没有前文)\n\n`;
     
+    prompt += `【本页要求】\n`;
+    prompt += `- 分镜数量: ${panelCount} 个\n`;
+    prompt += `- 页面布局: ${layoutDescription}\n`;
     if (pageOutline) {
-      prompt += `你的核心任务是创作接下来 ${panelCount} 个分镜的具体内容，并且必须严格围绕【本页故事大纲】：“${pageOutline}”来展开。\n`;
+      prompt += `- 本页大纲: ${pageOutline}\n`;
     }
 
-    prompt += `\n【角色使用规则】:\n${characterPoolDescription}\n`;
-    
-    const presetScenesText = initialScenes.map((scene, i) => {
-        const charNames = (scene.characterIds || []).map(id => charIdToName.get(id)).filter(Boolean);
-        return `- 分镜 ${i + 1}: ${charNames.length > 0 ? `已预设，必须出现角色 [${charNames.join(', ')}]` : '未预设角色'}`;
-    }).join('\n');
-    prompt += `\n【分镜角色预设】:\n${presetScenesText}\n`;
+    prompt += `\n【角色出场限制】(非常重要！)\n`;
+    if (mainCharacters.length > 0) {
+        prompt += `本页故事【必须且只能】围绕以下选定的角色展开：${mainCharacters.map(c => `[${c.name}]`).join(', ')}。绝对不允许引入其他未提及的角色！\n`;
+    } else if (allCharacters.length > 0) {
+        prompt += `你可以从以下角色库中选择角色出场：${allCharacters.map(c => `[${c.name}]`).join(', ')}。\n`;
+    } else {
+        prompt += `本页不需要任何特定角色出场。\n`;
+    }
 
     if (relationshipsPrompt) {
-      prompt += `\n请在故事中体现这些【重要关系】：${relationshipsPrompt}\n`;
+      prompt += `\n【角色关系设定】\n${relationshipsPrompt}\n`;
+    }
+
+    const presetScenesText = initialScenes.map((scene, i) => {
+        const charNames = (scene.characterIds || []).map(id => charIdToName.get(id)).filter(Boolean);
+        return charNames.length > 0 ? `分镜 ${i + 1} 必须包含角色: ${charNames.join(', ')}` : null;
+    }).filter(Boolean).join('\n');
+    
+    if (presetScenesText) {
+        prompt += `\n【特定分镜强制要求】\n${presetScenesText}\n`;
     }
 
     if (contextImage) {
-      prompt += "\n请特别参考这张图片作为接下来剧情的上下文。\n";
+      prompt += "\n【参考图片】\n请特别参考提供的图片作为接下来剧情的视觉上下文。\n";
       parts.push({ inlineData: { mimeType: contextImage.mimeType, data: contextImage.data } });
     }
     
-    prompt += `\n**你的任务是:**\n`;
-    prompt += `1. **故事创作**: 为全部 ${panelCount} 个分镜创作连贯的故事。故事必须严格遵守上面的【角色使用规则】。\n`;
-    prompt += `2. **角色分配**:\n`;
-    prompt += `   - 对于【已预设角色】的分镜，故事必须围绕他们展开。\n`;
-    if (characterPoolNames.length > 0) {
-        prompt += `   - 对于【未预设角色】的分镜，你【必须】从以下角色列表中选择角色出场：[${characterPoolNames.join(', ')}]。绝对不能使用此列表之外的任何角色。\n`;
-    } else {
-        prompt += `   - 对于【未预设角色】的分镜，不能安排任何角色出场。\n`;
-    }
-    prompt += `3. **提供描述**: 为每个分镜提供一个简洁、生动的故事描述。\n`;
-    prompt += `4. **选择镜头**: 为每个分镜从以下列表中精确选择一个最适合的【分镜镜头】：[${availableCameraShots.join(', ')}]\n`;
-    prompt += `5. **明确角色**: 为每个分镜明确指出最终出场的【所有角色名字】。如果分镜中没有角色，则返回一个空数组。\n`;
+    prompt += `\n【输出任务】\n`;
+    prompt += `请为这 ${panelCount} 个分镜编写具体的故事描述。要求：\n`;
+    prompt += `1. 剧情必须与【前文回顾】紧密衔接，逻辑连贯。\n`;
+    prompt += `2. 严格遵守【角色出场限制】，不要自己发明新角色。\n`;
+    prompt += `3. 描述要具体、有画面感，适合转化为漫画画面。\n`;
+    prompt += `4. 为每个分镜选择一个最合适的镜头：[${availableCameraShots.join(', ')}]\n`;
+    prompt += `5. 明确列出每个分镜中实际出场的角色名字（必须是上面允许的角色）。\n`;
     prompt += `\n请以JSON格式提供你的回答。JSON对象应包含一个名为 "panel_details" 的键，其值为一个包含 ${panelCount} 个对象的数组。每个对象都必须有三个键："description" (故事描述), "camera_shot" (分镜镜头), 和 "characters" (出场角色名字的数组)。`;
 
     parts.unshift({ text: prompt });
@@ -432,6 +471,7 @@ export const geminiService = {
     console.log("Generating story continuation with STRICT character logic:", { prompt, panelCount });
     
     try {
+        const ai = getAI('gemini-2.5-flash');
         const response = await ai.models.generateContent({
           model: 'gemini-2.5-flash',
           contents: { parts },
@@ -501,8 +541,11 @@ export const geminiService = {
         }
         throw new Error("Invalid JSON structure returned from AI.");
 
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error generating story continuation:", error);
+      if (error && error.status === 429) {
+          throw new Error("429 Quota Exceeded");
+      }
       const fallbackMessage = "发生意外错误。英雄停顿了一下，不知道接下来该做什么。";
       return Array.from({ length: panelCount }, (_, i) => ({ 
         description: i === 0 ? fallbackMessage : "", 

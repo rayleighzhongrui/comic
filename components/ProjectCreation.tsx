@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from 'react';
 // Fix: 'DrawingStyle' is an enum used as a value, so it must be a regular import, not a type-only import.
-import { type Project, type ComicFormat, DrawingStyle } from '../types';
+import { type Project, type ComicFormat, DrawingStyle, ImageModel } from '../types';
 import { DRAWING_STYLES, COMIC_FORMATS } from '../constants';
 import { geminiService } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
@@ -19,6 +19,7 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
   const [projectName, setProjectName] = useState('');
   const [format, setFormat] = useState<ComicFormat>(COMIC_FORMATS[0].id);
   const [style, setStyle] = useState<DrawingStyle>(DRAWING_STYLES[0].id);
+  const [imageModel, setImageModel] = useState<ImageModel>(ImageModel.GEMINI_2_5_FLASH);
   // Separate state for the effective prompt text.
   // When a preset is selected, this updates automatically.
   // When CUSTOM is selected, user edits this manually or via AI extraction.
@@ -27,6 +28,12 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
   const [isExtractingStyle, setIsExtractingStyle] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const styleImageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newModel = e.target.value as ImageModel;
+    setImageModel(newModel);
+    geminiService.checkAndOpenApiKeyDialog(newModel);
+  };
 
   const handleStyleChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newStyle = e.target.value as DrawingStyle;
@@ -87,6 +94,7 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
       format,
       style, // This tracks the 'Enum' selection (e.g. CUSTOM)
       stylePrompt, // This tracks the actual text prompt used
+      imageModel,
     });
   };
 
@@ -208,6 +216,28 @@ const ProjectCreation: React.FC<ProjectCreationProps> = ({ onCreateProject, onIm
                             className="w-full px-4 py-3 bg-gray-50 border-4 border-black text-black font-bold appearance-none focus:outline-none focus:bg-yellow-50 focus:border-cyan-500 focus:shadow-[4px_4px_0px_0px_rgba(6,182,212,1)] transition-all"
                         >
                             {DRAWING_STYLES.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                         <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-black">
+                            <svg className="fill-current h-6 w-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
+                        </div>
+                    </div>
+                  </div>
+
+                  {/* Model Select */}
+                  <div className="space-y-2">
+                    <label htmlFor="image-model" className="block text-lg font-black italic text-black uppercase transform -skew-x-6">
+                        04. AI Model / AI 模型
+                    </label>
+                     <div className="relative">
+                        <select
+                            id="image-model"
+                            value={imageModel}
+                            onChange={handleModelChange}
+                            className="w-full px-4 py-3 bg-gray-50 border-4 border-black text-black font-bold appearance-none focus:outline-none focus:bg-yellow-50 focus:border-cyan-500 focus:shadow-[4px_4px_0px_0px_rgba(6,182,212,1)] transition-all"
+                        >
+                            <option value={ImageModel.GEMINI_2_5_FLASH}>Gemini 2.5 Flash (Free/免费)</option>
+                            <option value={ImageModel.GEMINI_3_1_FLASH}>Gemini 3.1 Flash (Paid/付费)</option>
+                            <option value={ImageModel.IMAGEN_4}>Imagen 4.0 (Paid/付费)</option>
                         </select>
                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-black">
                             <svg className="fill-current h-6 w-6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>

@@ -4,15 +4,17 @@ import Modal from './Modal';
 import { geminiService } from '../services/geminiService';
 import LoadingSpinner from './LoadingSpinner';
 import { toBase64FromUrl } from '../utils';
+import { ImageModel } from '../types';
 
 interface ImageEditorModalProps {
   imageUrl: string;
   aspectRatio: '16:9' | '9:16' | '1:1' | '2:3' | '3:4' | '4:3';
+  imageModel: ImageModel;
   onClose: () => void;
   onSave: (newImageUrl: string) => void;
 }
 
-const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, aspectRatio, onClose, onSave }) => {
+const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, aspectRatio, imageModel, onClose, onSave }) => {
   const imageRef = useRef<HTMLImageElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isDrawing, setIsDrawing] = useState(false);
@@ -194,7 +196,7 @@ const ImageEditorModal: React.FC<ImageEditorModalProps> = ({ imageUrl, aspectRat
       const referenceImageBase64 = results.length > 2 ? results[2] : undefined;
 
 
-      const newImageUrl = await geminiService.editComicPanel(editPrompt, originalImageBase64, maskImageBase64, referenceImageBase64);
+      const newImageUrl = await geminiService.editComicPanel(editPrompt, originalImageBase64, maskImageBase64, imageModel, referenceImageBase64);
       setEditedImageUrl(newImageUrl);
 
     } catch(error) {

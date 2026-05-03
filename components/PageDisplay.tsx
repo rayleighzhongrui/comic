@@ -375,6 +375,7 @@ const PageDisplay: React.FC<PageDisplayProps> = ({ project, pages, onDeletePage,
             project.format === ComicFormat.WEBTOON ? '9:16' : 
             editingPage.mode === PageMode.SPREAD ? '4:3' : '3:4'
         }
+        imageModel={project.imageModel}
         onClose={() => setEditingPage(null)}
         onSave={(newImageUrl) => {
           onUpdatePage({ ...editingPage, imageUrl: newImageUrl });

@@ -27,12 +27,19 @@ export enum PageMode {
   SPREAD = 'spread',
 }
 
+export enum ImageModel {
+  GEMINI_2_5_FLASH = 'gemini-2.5-flash-image',
+  GEMINI_3_1_FLASH = 'gemini-3.1-flash-image-preview',
+  IMAGEN_4 = 'imagen-4.0-generate-001',
+}
+
 export interface Project {
   projectId: string;
   projectName: string;
   format: ComicFormat;
   style: DrawingStyle;
   stylePrompt: string; // This holds the actual prompt used for generation
+  imageModel: ImageModel;
 }
 
 export interface Character {

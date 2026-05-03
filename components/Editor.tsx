@@ -124,6 +124,23 @@ const Editor: React.FC<EditorProps> = (props) => {
           </div>
           <div className="flex gap-3">
              <button
+                onClick={() => {
+                  const aiStudio = (window as any).aistudio;
+                  if (aiStudio && typeof aiStudio.openSelectKey === 'function') {
+                    aiStudio.openSelectKey();
+                  } else {
+                    alert("API Key selection is not available in this environment.");
+                  }
+                }}
+                className="group flex items-center gap-2 px-4 py-2 bg-pink-500 hover:bg-pink-400 border-2 border-black text-white font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
+                title="重新选择 API Key"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M18 8a6 6 0 01-7.743 5.743L10 14l-1 1-1 1H6v2H2v-4l4.257-4.257A6 6 0 1118 8zm-6-4a1 1 0 100 2 2 2 0 012 2 1 1 0 102 0 4 4 0 00-4-4z" clipRule="evenodd" />
+                </svg>
+                API KEY
+            </button>
+             <button
                 onClick={() => setIsSettingsModalOpen(true)}
                 className="group flex items-center gap-2 px-4 py-2 bg-gray-100 hover:bg-gray-200 border-2 border-black text-black font-black uppercase shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
                 title="修改项目设置和画风"
